@@ -201,20 +201,26 @@ function cloneUpdateQueue<State>(
   return queue;
 }
 
+/**
+* @desc 创建一个state更新对象，接受过时时间和suspenseConfig。
+* @param 
+* @returns
+*/
+// 函数createUpdate会创建一个update对象，用于存放更新的状态partialState、状态更新后的回调函数callback和渲染的过期时间expirationTime。
 export function createUpdate(
   expirationTime: ExpirationTime,
   suspenseConfig: null | SuspenseConfig,
 ): Update<*> {
-  let update: Update<*> = {
-    expirationTime,
-    suspenseConfig,
+  let update: Update<*> = { // 初始化update对象的属性
+    expirationTime, // 过时时间
+    suspenseConfig, // 暂停配置
 
-    tag: UpdateState,
-    payload: null,
-    callback: null,
+    tag: UpdateState, // 常量标签，0，UpdateState表示这是一个更新状态的操作，值为0
+    payload: null, // 负载
+    callback: null, // 回调函数
 
-    next: null,
-    nextEffect: null,
+    next: null, // 队列下一项操作的指针
+    nextEffect: null,// ? 含义？ 区别？
   };
   if (__DEV__) {
     update.priority = getCurrentPriorityLevel();
@@ -235,7 +241,11 @@ function appendUpdateToQueue<State>(
     queue.lastUpdate = update;
   }
 }
-
+/**
+* @desc enqueueUpdate将update对象加入到队列，接受Fiber和update对象，Fiber本意为纤维
+* @param 
+* @returns
+*/
 export function enqueueUpdate<State>(fiber: Fiber, update: Update<State>) {
   // Update queues are created lazily.
   const alternate = fiber.alternate;

@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 
+ * @Author: wuqingshan
+ * @Date: 2020-09-01 18:27:20
+ * @LastEditors: wuqingshan
+ * @LastEditTime: 2020-09-01 19:32:27
+ */
 /**
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
@@ -9,6 +17,7 @@
 import type {RefObject} from 'shared/ReactTypes';
 
 // an immutable object with a single mutable value
+// createRef返回类型RefObject
 export function createRef(): RefObject {
   const refObject = {
     current: null,
@@ -16,5 +25,5 @@ export function createRef(): RefObject {
   if (__DEV__) {
     Object.seal(refObject);
   }
-  return refObject;
+  return refObject; // 返回一个Obj, 具有current属性。
 }

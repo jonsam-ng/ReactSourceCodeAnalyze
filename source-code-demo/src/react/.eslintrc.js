@@ -9,12 +9,12 @@ const OFF = 0;
 const ERROR = 2;
 
 module.exports = {
-  extends: 'fbjs',
+  // extends: 'fbjs',
 
   // Stop ESLint from looking for a configuration file in parent folders
   root: true,
 
-  plugins: ['jest', 'no-for-of-loops', 'react', 'react-internal'],
+  plugins: ['react'],
 
   parser: 'babel-eslint',
   parserOptions: {

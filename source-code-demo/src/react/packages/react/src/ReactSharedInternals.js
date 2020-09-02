@@ -1,3 +1,11 @@
+/*
+ * @Descripttion: 
+ * @version: 
+ * @Author: wuqingshan
+ * @Date: 2020-09-01 18:27:20
+ * @LastEditors: wuqingshan
+ * @LastEditTime: 2020-09-01 19:04:05
+ */
 /**
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
@@ -12,6 +20,7 @@ import ReactCurrentOwner from './ReactCurrentOwner';
 import ReactDebugCurrentFrame from './ReactDebugCurrentFrame';
 import IsSomeRendererActing from './IsSomeRendererActing';
 
+// React内部共享量
 const ReactSharedInternals = {
   ReactCurrentDispatcher,
   ReactCurrentBatchConfig,

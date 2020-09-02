@@ -504,10 +504,13 @@ export function cloneElement(element, config, children) {
  * @return {boolean} True if `object` is a ReactElement.
  * @final
  */
+// 校验是否是合法元素，只需要校验类型，重点是判断.$$typeof属性
 export function isValidElement(object) {
   return (
     typeof object === 'object' &&
     object !== null &&
-    object.$$typeof === REACT_ELEMENT_TYPE
+    // $$typeof是组件的属性，本质是Symbol,ReactElement类型是Symbol，是独有的。
+    // REACT_ELEMENT_TYPE指的就是Symbol(react.element)
+    object.$$typeof === REACT_ELEMENT_TYPE // $$typeof: Symbol(react.element)
   );
 }

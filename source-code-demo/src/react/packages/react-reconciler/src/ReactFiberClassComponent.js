@@ -181,26 +181,32 @@ export function applyDerivedStateFromProps(
 
 const classComponentUpdater = {
   isMounted,
+
+  // 函数enqueueSetState会创建一个update对象，并将要更新的状态partialState、
+  // 状态更新后的回调函数callback和渲染的过期时间expirationTime等都会挂载在该对象上。
+  // 然后将该update对象添加到更新队列中，并且产生一个调度任务。
   enqueueSetState(inst, payload, callback) {
-    const fiber = getInstance(inst);
+    const fiber = getInstance(inst); // fiber是inst的一个实例
     const currentTime = requestCurrentTime();
     const suspenseConfig = requestCurrentSuspenseConfig();
-    const expirationTime = computeExpirationForFiber(
+    const expirationTime = computeExpirationForFiber( // 
       currentTime,
       fiber,
       suspenseConfig,
     );
-
+    // 创建更新
     const update = createUpdate(expirationTime, suspenseConfig);
     update.payload = payload;
+    // setState的回调不是在这里执行，而是挂载到update上
     if (callback !== undefined && callback !== null) {
       if (__DEV__) {
         warnOnInvalidCallback(callback, 'setState');
       }
       update.callback = callback;
     }
-
+    // 加入状态更新队列
     enqueueUpdate(fiber, update);
+    // 通过调度任务执行更新
     scheduleWork(fiber, expirationTime);
   },
   enqueueReplaceState(inst, payload, callback) {

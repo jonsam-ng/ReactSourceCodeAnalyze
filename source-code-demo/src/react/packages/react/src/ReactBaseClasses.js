@@ -18,6 +18,7 @@ if (__DEV__) {
 /**
  * Base class helpers for the updating state of a component.
  */
+// 组件接受参数：props, context, updater
 function Component(props, context, updater) {
   this.props = props;
   this.context = context;
@@ -34,19 +35,19 @@ Component.prototype.isReactComponent = {};
  * Sets a subset of the state. Always use this to mutate
  * state. You should treat `this.state` as immutable.
  *
- * There is no guarantee that `this.state` will be immediately updated, so
+ * There is no guarantee that `this.state` will be immediately updated, so     state不一定立即更新。
  * accessing `this.state` after calling this method may return the old value.
  *
- * There is no guarantee that calls to `setState` will run synchronously,
- * as they may eventually be batched together.  You can provide an optional
- * callback that will be executed when the call to setState is actually
+ * There is no guarantee that calls to `setState` will run synchronously,      setState不一定是同步的。
+ * as they may eventually be batched together.  You can provide an optional    原因是会合并更新。
+ * callback that will be executed when the call to setState is actually        提供一个可选的回调当setState执行后调用。
  * completed.
  *
  * When a function is provided to setState, it will be called at some point in
- * the future (not synchronously). It will be called with the up to date
- * component arguments (state, props, context). These values can be different
- * from this.* because your function may be called after receiveProps but before
- * shouldComponentUpdate, and this new state, props, and context will not yet be
+ * the future (not synchronously). It will be called with the up to date        setState不是立即触发（非同步）
+ * component arguments (state, props, context). These values can be different   会用最新的组件参数来调用(state, props, context)。
+ * from this.* because your function may be called after receiveProps but before    可能会在receiveProps之后shouldComponentUpdate之前调用
+ * shouldComponentUpdate, and this new state, props, and context will not yet be    此时新的state, props, context尚未就位。
  * assigned to this.
  *
  * @param {object|function} partialState Next partial state or function to
@@ -55,14 +56,18 @@ Component.prototype.isReactComponent = {};
  * @final
  * @protected
  */
+// ! setState、forceUpdate 是挂载在组件原型上的
+// 函数setState包含两个参数partialState和callback，其中partialState表示待更新的部分状态，callback则为状态更新后的回调函数。
 Component.prototype.setState = function(partialState, callback) {
-  invariant(
+  invariant( // 常量
     typeof partialState === 'object' ||
       typeof partialState === 'function' ||
       partialState == null,
     'setState(...): takes an object of state variables to update or a ' +
       'function which returns an object of state variables.',
   );
+  // 入setState队列
+  // /react/packages/react-reconciler/src/ReactFiberClassComponent.js
   this.updater.enqueueSetState(this, partialState, callback, 'setState');
 };
 
