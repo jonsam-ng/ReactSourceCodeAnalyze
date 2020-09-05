@@ -709,9 +709,9 @@ describe('ReactComponentLifeCycle', () => {
       );
     }).toLowPriorityWarnDev(
       [
-        'componentWillMount has been renamed',
-        'componentWillReceiveProps has been renamed',
-        'componentWillUpdate has been renamed',
+        'componentWillMount is deprecated',
+        'componentWillReceiveProps is deprecated',
+        'componentWillUpdate is deprecated',
       ],
       {withoutStack: true},
     );
@@ -748,9 +748,9 @@ describe('ReactComponentLifeCycle', () => {
       );
     }).toLowPriorityWarnDev(
       [
-        'componentWillMount has been renamed',
-        'componentWillReceiveProps has been renamed',
-        'componentWillUpdate has been renamed',
+        'componentWillMount is deprecated',
+        'componentWillReceiveProps is deprecated',
+        'componentWillUpdate is deprecated',
       ],
       {withoutStack: true},
     );
@@ -811,14 +811,11 @@ describe('ReactComponentLifeCycle', () => {
           '  UNSAFE_componentWillReceiveProps\n' +
           '  componentWillUpdate\n\n' +
           'The above lifecycles should be removed. Learn more about this warning here:\n' +
-          'https://fb.me/react-unsafe-component-lifecycles',
+          'https://fb.me/react-async-component-lifecycle-hooks',
         {withoutStack: true},
       );
     }).toLowPriorityWarnDev(
-      [
-        'componentWillMount has been renamed',
-        'componentWillUpdate has been renamed',
-      ],
+      ['componentWillMount is deprecated', 'componentWillUpdate is deprecated'],
       {withoutStack: true},
     );
 
@@ -838,7 +835,7 @@ describe('ReactComponentLifeCycle', () => {
         'WillMount uses getDerivedStateFromProps() but also contains the following legacy lifecycles:\n' +
         '  UNSAFE_componentWillMount\n\n' +
         'The above lifecycles should be removed. Learn more about this warning here:\n' +
-        'https://fb.me/react-unsafe-component-lifecycles',
+        'https://fb.me/react-async-component-lifecycle-hooks',
       {withoutStack: true},
     );
 
@@ -863,10 +860,10 @@ describe('ReactComponentLifeCycle', () => {
           '  componentWillMount\n' +
           '  UNSAFE_componentWillUpdate\n\n' +
           'The above lifecycles should be removed. Learn more about this warning here:\n' +
-          'https://fb.me/react-unsafe-component-lifecycles',
+          'https://fb.me/react-async-component-lifecycle-hooks',
         {withoutStack: true},
       );
-    }).toLowPriorityWarnDev(['componentWillMount has been renamed'], {
+    }).toLowPriorityWarnDev(['componentWillMount is deprecated'], {
       withoutStack: true,
     });
 
@@ -887,10 +884,10 @@ describe('ReactComponentLifeCycle', () => {
           'WillReceiveProps uses getDerivedStateFromProps() but also contains the following legacy lifecycles:\n' +
           '  componentWillReceiveProps\n\n' +
           'The above lifecycles should be removed. Learn more about this warning here:\n' +
-          'https://fb.me/react-unsafe-component-lifecycles',
+          'https://fb.me/react-async-component-lifecycle-hooks',
         {withoutStack: true},
       );
-    }).toLowPriorityWarnDev(['componentWillReceiveProps has been renamed'], {
+    }).toLowPriorityWarnDev(['componentWillReceiveProps is deprecated'], {
       withoutStack: true,
     });
   });
@@ -920,14 +917,11 @@ describe('ReactComponentLifeCycle', () => {
           '  UNSAFE_componentWillReceiveProps\n' +
           '  componentWillUpdate\n\n' +
           'The above lifecycles should be removed. Learn more about this warning here:\n' +
-          'https://fb.me/react-unsafe-component-lifecycles',
+          'https://fb.me/react-async-component-lifecycle-hooks',
         {withoutStack: true},
       );
     }).toLowPriorityWarnDev(
-      [
-        'componentWillMount has been renamed',
-        'componentWillUpdate has been renamed',
-      ],
+      ['componentWillMount is deprecated', 'componentWillUpdate is deprecated'],
       {withoutStack: true},
     );
 
@@ -946,7 +940,7 @@ describe('ReactComponentLifeCycle', () => {
         'WillMount uses getSnapshotBeforeUpdate() but also contains the following legacy lifecycles:\n' +
         '  UNSAFE_componentWillMount\n\n' +
         'The above lifecycles should be removed. Learn more about this warning here:\n' +
-        'https://fb.me/react-unsafe-component-lifecycles',
+        'https://fb.me/react-async-component-lifecycle-hooks',
       {withoutStack: true},
     );
 
@@ -970,10 +964,10 @@ describe('ReactComponentLifeCycle', () => {
           '  componentWillMount\n' +
           '  UNSAFE_componentWillUpdate\n\n' +
           'The above lifecycles should be removed. Learn more about this warning here:\n' +
-          'https://fb.me/react-unsafe-component-lifecycles',
+          'https://fb.me/react-async-component-lifecycle-hooks',
         {withoutStack: true},
       );
-    }).toLowPriorityWarnDev(['componentWillMount has been renamed'], {
+    }).toLowPriorityWarnDev(['componentWillMount is deprecated'], {
       withoutStack: true,
     });
 
@@ -993,10 +987,10 @@ describe('ReactComponentLifeCycle', () => {
           'WillReceiveProps uses getSnapshotBeforeUpdate() but also contains the following legacy lifecycles:\n' +
           '  componentWillReceiveProps\n\n' +
           'The above lifecycles should be removed. Learn more about this warning here:\n' +
-          'https://fb.me/react-unsafe-component-lifecycles',
+          'https://fb.me/react-async-component-lifecycle-hooks',
         {withoutStack: true},
       );
-    }).toLowPriorityWarnDev(['componentWillReceiveProps has been renamed'], {
+    }).toLowPriorityWarnDev(['componentWillReceiveProps is deprecated'], {
       withoutStack: true,
     });
   });
@@ -1136,9 +1130,9 @@ describe('ReactComponentLifeCycle', () => {
       ReactDOM.render(<MyComponent foo="bar" />, div),
     ).toLowPriorityWarnDev(
       [
-        'componentWillMount has been renamed',
-        'componentWillReceiveProps has been renamed',
-        'componentWillUpdate has been renamed',
+        'componentWillMount is deprecated',
+        'componentWillReceiveProps is deprecated',
+        'componentWillUpdate is deprecated',
       ],
       {withoutStack: true},
     );
@@ -1409,32 +1403,22 @@ describe('ReactComponentLifeCycle', () => {
       ReactDOM.render(<MyComponent x={1} />, container),
     ).toLowPriorityWarnDev(
       [
-        /* eslint-disable max-len */
-        `Warning: componentWillMount has been renamed, and is not recommended for use. See https://fb.me/react-unsafe-component-lifecycles for details.
-
-* Move code with side effects to componentDidMount, and set initial state in the constructor.
-* Rename componentWillMount to UNSAFE_componentWillMount to suppress this warning in non-strict mode. In React 17.x, only the UNSAFE_ name will work. To rename all deprecated lifecycles to their new names, you can run \`npx react-codemod rename-unsafe-lifecycles\` in your project source folder.
-
-Please update the following components: MyComponent`,
-        `Warning: componentWillReceiveProps has been renamed, and is not recommended for use. See https://fb.me/react-unsafe-component-lifecycles for details.
-
-* Move data fetching code or side effects to componentDidUpdate.
-* If you're updating state whenever props change, refactor your code to use memoization techniques or move it to static getDerivedStateFromProps. Learn more at: https://fb.me/react-derived-state
-* Rename componentWillReceiveProps to UNSAFE_componentWillReceiveProps to suppress this warning in non-strict mode. In React 17.x, only the UNSAFE_ name will work. To rename all deprecated lifecycles to their new names, you can run \`npx react-codemod rename-unsafe-lifecycles\` in your project source folder.
-
-Please update the following components: MyComponent`,
-        `Warning: componentWillUpdate has been renamed, and is not recommended for use. See https://fb.me/react-unsafe-component-lifecycles for details.
-
-* Move data fetching code or side effects to componentDidUpdate.
-* Rename componentWillUpdate to UNSAFE_componentWillUpdate to suppress this warning in non-strict mode. In React 17.x, only the UNSAFE_ name will work. To rename all deprecated lifecycles to their new names, you can run \`npx react-codemod rename-unsafe-lifecycles\` in your project source folder.
-
-Please update the following components: MyComponent`,
-        /* eslint-enable max-len */
+        'componentWillMount is deprecated and will be removed in the next major version. ' +
+          'Use componentDidMount instead. As a temporary workaround, ' +
+          'you can rename to UNSAFE_componentWillMount.' +
+          '\n\nPlease update the following components: MyComponent',
+        'componentWillReceiveProps is deprecated and will be removed in the next major version. ' +
+          'Use static getDerivedStateFromProps instead.' +
+          '\n\nPlease update the following components: MyComponent',
+        'componentWillUpdate is deprecated and will be removed in the next major version. ' +
+          'Use componentDidUpdate instead. As a temporary workaround, ' +
+          'you can rename to UNSAFE_componentWillUpdate.' +
+          '\n\nPlease update the following components: MyComponent',
       ],
       {withoutStack: true},
     );
 
-    // Dedupe check (update and instantiate new)
+    // Dedupe check (update and instantiate new
     ReactDOM.render(<MyComponent x={2} />, container);
     ReactDOM.render(<MyComponent key="new" x={1} />, container);
   });

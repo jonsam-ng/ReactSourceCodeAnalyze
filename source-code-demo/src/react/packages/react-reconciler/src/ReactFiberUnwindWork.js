@@ -9,7 +9,6 @@
 
 import type {Fiber} from './ReactFiber';
 import type {ExpirationTime} from './ReactFiberExpirationTime';
-import type {SuspenseState} from './ReactFiberSuspenseComponent';
 
 import {
   ClassComponent,
@@ -19,13 +18,17 @@ import {
   ContextProvider,
   SuspenseComponent,
   SuspenseListComponent,
+  DehydratedSuspenseComponent,
+  EventComponent,
 } from 'shared/ReactWorkTags';
 import {DidCapture, NoEffect, ShouldCapture} from 'shared/ReactSideEffectTags';
-import {enableSuspenseServerRenderer} from 'shared/ReactFeatureFlags';
+import {
+  enableSuspenseServerRenderer,
+  enableFlareAPI,
+} from 'shared/ReactFeatureFlags';
 
 import {popHostContainer, popHostContext} from './ReactFiberHostContext';
 import {popSuspenseContext} from './ReactFiberSuspenseContext';
-import {resetHydrationState} from './ReactFiberHydrationContext';
 import {
   isContextProvider as isLegacyContextProvider,
   popContext as popLegacyContext,
@@ -35,23 +38,32 @@ import {popProvider} from './ReactFiberNewContext';
 
 import invariant from 'shared/invariant';
 
+//根据不同组件的类型和目标节点的effectTag，判断返回该节点还是 null
 function unwindWork(
   workInProgress: Fiber,
   renderExpirationTime: ExpirationTime,
 ) {
   switch (workInProgress.tag) {
+    //注意：只有ClassComponent和SuspenseComponent有ShouldCaptutre 的 sideEffect
+    //也就是说，只有 ClassComponent和SuspenseComponent能捕获到错误
     case ClassComponent: {
+      //===暂时跳过===
       const Component = workInProgress.type;
       if (isLegacyContextProvider(Component)) {
         popLegacyContext(workInProgress);
       }
+      //获取effectTag
       const effectTag = workInProgress.effectTag;
+      //如果 effectTag 上有 ShouldCapture 的副作用（side-effect）的话，
+      //就将 ShouldCapture 去掉，加上 DidCapture 的副作用
       if (effectTag & ShouldCapture) {
         workInProgress.effectTag = (effectTag & ~ShouldCapture) | DidCapture;
         return workInProgress;
       }
       return null;
     }
+    //如果fiberRoot 节点捕获到错误的话，则说明能处理错误的子节点没有去处理
+    //可能是 React 内部的 bug
     case HostRoot: {
       popHostContainer(workInProgress);
       popTopLevelLegacyContextObject(workInProgress);
@@ -59,11 +71,15 @@ function unwindWork(
       invariant(
         (effectTag & DidCapture) === NoEffect,
         'The root failed to unmount after an error. This is likely a bug in ' +
-          'React. Please file an issue.',
+        'React. Please file an issue.',
       );
       workInProgress.effectTag = (effectTag & ~ShouldCapture) | DidCapture;
       return workInProgress;
     }
+    //即 DOM 元素，会直接返回 null
+    //也就是说，会交给父节点去处理
+    //如果父节点仍是 HostComponent 的话，会向上递归，直到到达ClassComponent
+    //然后让ClassComponent捕获 error
     case HostComponent: {
       // TODO: popHydrationState
       popHostContext(workInProgress);
@@ -71,23 +87,24 @@ function unwindWork(
     }
     case SuspenseComponent: {
       popSuspenseContext(workInProgress);
-      if (enableSuspenseServerRenderer) {
-        const suspenseState: null | SuspenseState =
-          workInProgress.memoizedState;
-        if (suspenseState !== null && suspenseState.dehydrated !== null) {
-          invariant(
-            workInProgress.alternate !== null,
-            'Threw in newly mounted dehydrated component. This is likely a bug in ' +
-              'React. Please file an issue.',
-          );
-          resetHydrationState();
-        }
-      }
       const effectTag = workInProgress.effectTag;
       if (effectTag & ShouldCapture) {
         workInProgress.effectTag = (effectTag & ~ShouldCapture) | DidCapture;
         // Captured a suspense effect. Re-render the boundary.
         return workInProgress;
+      }
+      return null;
+    }
+    case DehydratedSuspenseComponent: {
+      if (enableSuspenseServerRenderer) {
+        // TODO: popHydrationState
+        popSuspenseContext(workInProgress);
+        const effectTag = workInProgress.effectTag;
+        if (effectTag & ShouldCapture) {
+          workInProgress.effectTag = (effectTag & ~ShouldCapture) | DidCapture;
+          // Captured a suspense effect. Re-render the boundary.
+          return workInProgress;
+        }
       }
       return null;
     }
@@ -103,12 +120,18 @@ function unwindWork(
     case ContextProvider:
       popProvider(workInProgress);
       return null;
+    case EventComponent:
+      if (enableFlareAPI) {
+        popHostContext(workInProgress);
+      }
+      return null;
     default:
       return null;
   }
 }
 
 function unwindInterruptedWork(interruptedWork: Fiber) {
+  // react16.8.6/packages/shared/ReactWorkTags.js
   switch (interruptedWork.tag) {
     case ClassComponent: {
       const childContextTypes = interruptedWork.type.childContextTypes;
@@ -132,11 +155,22 @@ function unwindInterruptedWork(interruptedWork: Fiber) {
     case SuspenseComponent:
       popSuspenseContext(interruptedWork);
       break;
+    case DehydratedSuspenseComponent:
+      if (enableSuspenseServerRenderer) {
+        // TODO: popHydrationState
+        popSuspenseContext(interruptedWork);
+      }
+      break;
     case SuspenseListComponent:
       popSuspenseContext(interruptedWork);
       break;
     case ContextProvider:
       popProvider(interruptedWork);
+      break;
+    case EventComponent:
+      if (enableFlareAPI) {
+        popHostContext(interruptedWork);
+      }
       break;
     default:
       break;

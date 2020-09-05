@@ -16,6 +16,8 @@ import {isUnitlessNumber} from './CSSProperty';
  * @param {*} value CSS property value such as `10px`.
  * @return {string} Normalized style value with dimensions applied.
  */
+
+//确保样式的 value 是正确的
 function dangerousStyleValue(name, value, isCustomProperty) {
   // Note that we've removed escapeTextForBrowser() calls here since the
   // whole string will be escaped when the attribute is injected into
@@ -33,11 +35,13 @@ function dangerousStyleValue(name, value, isCustomProperty) {
   }
 
   if (
+    //-webkit-transform/-moz-transform/-ms-transform
     !isCustomProperty &&
     typeof value === 'number' &&
     value !== 0 &&
     !(isUnitlessNumber.hasOwnProperty(name) && isUnitlessNumber[name])
   ) {
+    //将 React上的 style 里的对象的值转成 px
     return value + 'px'; // Presumes implicit 'px' suffix for unitless numbers
   }
 

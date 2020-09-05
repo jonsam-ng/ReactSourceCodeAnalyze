@@ -296,11 +296,7 @@ function scheduleFibersWithFamiliesRecursively(
         if (staleFamilies.has(family)) {
           needsRemount = true;
         } else if (updatedFamilies.has(family)) {
-          if (tag === ClassComponent) {
-            needsRemount = true;
-          } else {
-            needsRender = true;
-          }
+          needsRender = true;
         }
       }
     }

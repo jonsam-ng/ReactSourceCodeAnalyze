@@ -20,19 +20,13 @@ import type {
 import type {ReactNodeList} from 'shared/ReactTypes';
 
 import {REACT_MEMO_TYPE, REACT_FORWARD_REF_TYPE} from 'shared/ReactSymbols';
+import warningWithoutStack from 'shared/warningWithoutStack';
 
 type Signature = {|
   ownKey: string,
   forceReset: boolean,
   fullKey: string | null, // Contains keys of nested Hooks. Computed lazily.
   getCustomHooks: () => Array<Function>,
-|};
-
-type RendererHelpers = {|
-  findHostInstancesForRefresh: FindHostInstancesForRefresh,
-  scheduleRefresh: ScheduleRefresh,
-  scheduleRoot: ScheduleRoot,
-  setRefreshHandler: SetRefreshHandler,
 |};
 
 if (!__DEV__) {
@@ -62,15 +56,15 @@ WeakMap<any, Family> | Map<any, Family> = new PossiblyWeakMap();
 let pendingUpdates: Array<[Family, any]> = [];
 
 // This is injected by the renderer via DevTools global hook.
-let helpersByRendererID: Map<number, RendererHelpers> = new Map();
-
-let helpersByRoot: Map<FiberRoot, RendererHelpers> = new Map();
+let setRefreshHandler: null | SetRefreshHandler = null;
+let scheduleRefresh: null | ScheduleRefresh = null;
+let scheduleRoot: null | ScheduleRoot = null;
+let findHostInstancesForRefresh: null | FindHostInstancesForRefresh = null;
 
 // We keep track of mounted roots so we can schedule updates.
 let mountedRoots: Set<FiberRoot> = new Set();
 // If a root captures an error, we add its element to this Map so we can retry on edit.
 let failedRoots: Map<FiberRoot, ReactNodeList> = new Map();
-let didSomeRootFailOnMount = false;
 
 function computeFullKey(signature: Signature): string {
   if (signature.fullKey !== null) {
@@ -187,23 +181,49 @@ export function performReactRefresh(): RefreshUpdate | null {
       staleFamilies, // Families that will be remounted
     };
 
-    helpersByRendererID.forEach(helpers => {
-      // Even if there are no roots, set the handler on first update.
-      // This ensures that if *new* roots are mounted, they'll use the resolve handler.
-      helpers.setRefreshHandler(resolveFamily);
-    });
+    if (typeof setRefreshHandler !== 'function') {
+      warningWithoutStack(
+        false,
+        'Could not find the setRefreshHandler() implementation. ' +
+          'This likely means that injectIntoGlobalHook() was either ' +
+          'called before the global DevTools hook was set up, or after the ' +
+          'renderer has already initialized. Please file an issue with a reproducing case.',
+      );
+      return null;
+    }
+
+    if (typeof scheduleRefresh !== 'function') {
+      warningWithoutStack(
+        false,
+        'Could not find the scheduleRefresh() implementation. ' +
+          'This likely means that injectIntoGlobalHook() was either ' +
+          'called before the global DevTools hook was set up, or after the ' +
+          'renderer has already initialized. Please file an issue with a reproducing case.',
+      );
+      return null;
+    }
+    if (typeof scheduleRoot !== 'function') {
+      warningWithoutStack(
+        false,
+        'Could not find the scheduleRoot() implementation. ' +
+          'This likely means that injectIntoGlobalHook() was either ' +
+          'called before the global DevTools hook was set up, or after the ' +
+          'renderer has already initialized. Please file an issue with a reproducing case.',
+      );
+      return null;
+    }
+    const scheduleRefreshForRoot = scheduleRefresh;
+    const scheduleRenderForRoot = scheduleRoot;
+
+    // Even if there are no roots, set the handler on first update.
+    // This ensures that if *new* roots are mounted, they'll use the resolve handler.
+    setRefreshHandler(resolveFamily);
 
     let didError = false;
     let firstError = null;
     failedRoots.forEach((element, root) => {
-      const helpers = helpersByRoot.get(root);
-      if (helpers === undefined) {
-        throw new Error(
-          'Could not find helpers for a root. This is a bug in React Refresh.',
-        );
-      }
       try {
-        helpers.scheduleRoot(root, element);
+        scheduleRenderForRoot(root, element);
       } catch (err) {
         if (!didError) {
           didError = true;
@@ -213,14 +233,8 @@ export function performReactRefresh(): RefreshUpdate | null {
       }
     });
     mountedRoots.forEach(root => {
-      const helpers = helpersByRoot.get(root);
-      if (helpers === undefined) {
-        throw new Error(
-          'Could not find helpers for a root. This is a bug in React Refresh.',
-        );
-      }
       try {
-        helpers.scheduleRefresh(root, update);
+        scheduleRefreshForRoot(root, update);
       } catch (err) {
         if (!didError) {
           didError = true;
@@ -344,18 +358,20 @@ export function findAffectedHostInstances(
   families: Array<Family>,
 ): Set<Instance> {
   if (__DEV__) {
+    if (typeof findHostInstancesForRefresh !== 'function') {
+      warningWithoutStack(
+        false,
+        'Could not find the findHostInstancesForRefresh() implementation. ' +
+          'This likely means that injectIntoGlobalHook() was either ' +
+          'called before the global DevTools hook was set up, or after the ' +
+          'renderer has already initialized. Please file an issue with a reproducing case.',
+      );
+      return new Set();
+    }
+    const findInstances = findHostInstancesForRefresh;
     let affectedInstances = new Set();
     mountedRoots.forEach(root => {
-      const helpers = helpersByRoot.get(root);
-      if (helpers === undefined) {
-        throw new Error(
-          'Could not find helpers for a root. This is a bug in React Refresh.',
-        );
-      }
-      const instancesForRoot = helpers.findHostInstancesForRefresh(
-        root,
-        families,
-      );
+      const instancesForRoot = findInstances(root, families);
       instancesForRoot.forEach(inst => {
         affectedInstances.add(inst);
       });
@@ -380,14 +396,11 @@ export function injectIntoGlobalHook(globalObject: any): void {
       // However, if there is no DevTools extension, we'll need to set up the global hook ourselves.
       // Note that in this case it's important that renderer code runs *after* this method call.
       // Otherwise, the renderer will think that there is no global hook, and won't do the injection.
-      let nextID = 0;
       globalObject.__REACT_DEVTOOLS_GLOBAL_HOOK__ = hook = {
         supportsFiber: true,
-        inject(injected) {
-          return nextID++;
-        },
+        inject() {},
         onCommitFiberRoot(
-          id: number,
+          id: mixed,
           root: FiberRoot,
           maybePriorityLevel: mixed,
           didError: boolean,
@@ -399,31 +412,23 @@ export function injectIntoGlobalHook(globalObject: any): void {
     // Here, we just want to get a reference to scheduleRefresh.
     const oldInject = hook.inject;
     hook.inject = function(injected) {
-      const id = oldInject.apply(this, arguments);
-      if (
-        typeof injected.scheduleRefresh === 'function' &&
-        typeof injected.setRefreshHandler === 'function'
-      ) {
-        // This version supports React Refresh.
-        helpersByRendererID.set(id, ((injected: any): RendererHelpers));
-      }
-      return id;
+      findHostInstancesForRefresh = ((injected: any)
+        .findHostInstancesForRefresh: FindHostInstancesForRefresh);
+      scheduleRefresh = ((injected: any).scheduleRefresh: ScheduleRefresh);
+      scheduleRoot = ((injected: any).scheduleRoot: ScheduleRoot);
+      setRefreshHandler = ((injected: any)
+        .setRefreshHandler: SetRefreshHandler);
+      return oldInject.apply(this, arguments);
     };
 
     // We also want to track currently mounted roots.
     const oldOnCommitFiberRoot = hook.onCommitFiberRoot;
     hook.onCommitFiberRoot = function(
-      id: number,
+      id: mixed,
       root: FiberRoot,
       maybePriorityLevel: mixed,
       didError: boolean,
     ) {
-      const helpers = helpersByRendererID.get(id);
-      if (helpers === undefined) {
-        return;
-      }
-      helpersByRoot.set(root, helpers);
-
       const current = root.current;
       const alternate = current.alternate;
 
@@ -453,21 +458,6 @@ export function injectIntoGlobalHook(globalObject: any): void {
             // We'll remount it on future edits.
             // Remember what was rendered so we can restore it.
             failedRoots.set(root, alternate.memoizedState.element);
-          } else {
-            helpersByRoot.delete(root);
-          }
-        } else if (!wasMounted && !isMounted) {
-          if (didError && !failedRoots.has(root)) {
-            // The root had an error during the initial mount.
-            // We can't read its last element from the memoized state
-            // because there was no previously committed alternate.
-            // Ideally, it would be nice if we had a way to extract
-            // the last attempted rendered element, but accessing the update queue
-            // would tie this package too closely to the reconciler version.
-            // So instead, we just set a flag.
-            // TODO: Maybe we could fix this as the same time as when we fix
-            // DevTools to not depend on `alternate.memoizedState.element`.
-            didSomeRootFailOnMount = true;
           }
         }
       } else {
@@ -482,10 +472,6 @@ export function injectIntoGlobalHook(globalObject: any): void {
       'Unexpected call to React Refresh in a production environment.',
     );
   }
-}
-
-export function hasUnrecoverableErrors() {
-  return didSomeRootFailOnMount;
 }
 
 // Exposed for testing.

@@ -134,12 +134,7 @@ describe('ReactDOMTracing', () => {
         expect(
           onInteractionScheduledWorkCompleted,
         ).toHaveBeenLastNotifiedOfInteraction(interaction);
-        // TODO: This is 4 instead of 3 because this update was scheduled at
-        // idle priority, and idle updates are slightly higher priority than
-        // offscreen work. So it takes two render passes to finish it. Profiler
-        // calls `onRender` for the first render even though everything
-        // bails out.
-        expect(onRender).toHaveBeenCalledTimes(4);
+        expect(onRender).toHaveBeenCalledTimes(3);
         expect(onRender).toHaveLastRenderedWithInteractions(
           new Set([interaction]),
         );
@@ -286,12 +281,7 @@ describe('ReactDOMTracing', () => {
         expect(
           onInteractionScheduledWorkCompleted,
         ).toHaveBeenLastNotifiedOfInteraction(interaction);
-        // TODO: This is 4 instead of 3 because this update was scheduled at
-        // idle priority, and idle updates are slightly higher priority than
-        // offscreen work. So it takes two render passes to finish it. Profiler
-        // calls `onRender` for the first render even though everything
-        // bails out.
-        expect(onRender).toHaveBeenCalledTimes(4);
+        expect(onRender).toHaveBeenCalledTimes(3);
         expect(onRender).toHaveLastRenderedWithInteractions(
           new Set([interaction]),
         );
@@ -335,10 +325,10 @@ describe('ReactDOMTracing', () => {
           });
 
           return (
-            <>
+            <React.Fragment>
               <WithHiddenWork />
               <Updater />
-            </>
+            </React.Fragment>
           );
         };
 
@@ -439,10 +429,10 @@ describe('ReactDOMTracing', () => {
           });
 
           return (
-            <>
+            <React.Fragment>
               <MaybeHiddenWork />
               <Updater />
-            </>
+            </React.Fragment>
           );
         };
 
@@ -713,78 +703,6 @@ describe('ReactDOMTracing', () => {
         jest.runAllTimers();
 
         expect(ref.current).not.toBe(null);
-        expect(onInteractionScheduledWorkCompleted).toHaveBeenCalledTimes(1);
-        expect(
-          onInteractionScheduledWorkCompleted,
-        ).toHaveBeenLastNotifiedOfInteraction(interaction);
-
-        done();
-      });
-
-      it('traces interaction across client-rendered hydration', async done => {
-        let suspend = false;
-        let promise = new Promise(() => {});
-        let ref = React.createRef();
-
-        function Child() {
-          if (suspend) {
-            throw promise;
-          } else {
-            return 'Hello';
-          }
-        }
-
-        function App() {
-          return (
-            <div>
-              <React.Suspense fallback="Loading...">
-                <span ref={ref}>
-                  <Child />
-                </span>
-              </React.Suspense>
-            </div>
-          );
-        }
-
-        // Render the final HTML.
-        suspend = true;
-        const finalHTML = ReactDOMServer.renderToString(<App />);
-
-        const container = document.createElement('div');
-        container.innerHTML = finalHTML;
-
-        let interaction;
-
-        const root = ReactDOM.unstable_createRoot(container, {hydrate: true});
-
-        // Hydrate without suspending to fill in the client-rendered content.
-        suspend = false;
-        SchedulerTracing.unstable_trace('initialization', 0, () => {
-          interaction = Array.from(SchedulerTracing.unstable_getCurrent())[0];
-
-          root.render(<App />);
-        });
-
-        expect(onWorkStopped).toHaveBeenCalledTimes(1);
-
-        // Advance time a bit so that we get into a new expiration bucket.
-        Scheduler.unstable_advanceTime(300);
-        jest.advanceTimersByTime(300);
-
-        Scheduler.unstable_flushAll();
-        jest.runAllTimers();
-
-        expect(ref.current).not.toBe(null);
-
-        // We should've had two commits that was traced.
-        // First one that hydrates the parent, and then one that hydrates
-        // the boundary at higher than Never priority.
-        expect(onWorkStopped).toHaveBeenCalledTimes(3);
-
-        expect(onInteractionTraced).toHaveBeenCalledTimes(1);
-        expect(onInteractionTraced).toHaveBeenLastNotifiedOfInteraction(
-          interaction,
-        );
         expect(onInteractionScheduledWorkCompleted).toHaveBeenCalledTimes(1);
         expect(
           onInteractionScheduledWorkCompleted,

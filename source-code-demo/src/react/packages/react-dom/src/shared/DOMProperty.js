@@ -62,6 +62,8 @@ export const ATTRIBUTE_NAME_CHAR =
   ATTRIBUTE_NAME_START_CHAR + '\\-.0-9\\u00B7\\u0300-\\u036F\\u203F-\\u2040';
 
 export const ID_ATTRIBUTE_NAME = 'data-reactid';
+//服务端渲染的话，会在React App的第一个元素上添加该属性
+//以标识是服务端渲染的
 export const ROOT_ATTRIBUTE_NAME = 'data-reactroot';
 export const VALID_ATTRIBUTE_NAME_REGEX = new RegExp(
   '^[' + ATTRIBUTE_NAME_START_CHAR + '][' + ATTRIBUTE_NAME_CHAR + ']*$',
@@ -207,6 +209,7 @@ function PropertyInfoRecord(
 const properties = {};
 
 // These props are reserved by React. They shouldn't be written to the DOM.
+//是 React 自定义的一套 DOM 标签属性，不被传统的 DOM 通用
 [
   'children',
   'dangerouslySetInnerHTML',

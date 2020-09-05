@@ -11,22 +11,21 @@ import type {EventPriority} from 'shared/ReactTypes';
 import type {
   TopLevelType,
   DOMTopLevelEventType,
-} from 'legacy-events/TopLevelEventTypes';
+} from 'events/TopLevelEventTypes';
 import type {
   DispatchConfig,
   ReactSyntheticEvent,
-} from 'legacy-events/ReactSyntheticEventType';
+} from 'events/ReactSyntheticEventType';
 import type {Fiber} from 'react-reconciler/src/ReactFiber';
-import type {EventTypes, PluginModule} from 'legacy-events/PluginModuleType';
-import type {EventSystemFlags} from 'legacy-events/EventSystemFlags';
+import type {EventTypes, PluginModule} from 'events/PluginModuleType';
 
 import {
   DiscreteEvent,
   UserBlockingEvent,
   ContinuousEvent,
 } from 'shared/ReactTypes';
-import {accumulateTwoPhaseDispatches} from 'legacy-events/EventPropagators';
-import SyntheticEvent from 'legacy-events/SyntheticEvent';
+import {accumulateTwoPhaseDispatches} from 'events/EventPropagators';
+import SyntheticEvent from 'events/SyntheticEvent';
 
 import * as DOMTopLevelEventTypes from './DOMTopLevelEventTypes';
 import warningWithoutStack from 'shared/warningWithoutStack';
@@ -248,7 +247,6 @@ const SimpleEventPlugin: PluginModule<MouseEvent> & {
 
   extractEvents: function(
     topLevelType: TopLevelType,
-    eventSystemFlags: EventSystemFlags,
     targetInst: null | Fiber,
     nativeEvent: MouseEvent,
     nativeEventTarget: EventTarget,

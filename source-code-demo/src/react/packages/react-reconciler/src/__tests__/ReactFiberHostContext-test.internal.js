@@ -33,6 +33,9 @@ describe('ReactFiberHostContext', () => {
       getChildHostContext: function() {
         return null;
       },
+      getChildHostContextForEventComponent: function() {
+        return null;
+      },
       shouldSetTextContent: function() {
         return false;
       },
@@ -58,7 +61,6 @@ describe('ReactFiberHostContext', () => {
       /* root: */ null,
       ConcurrentRoot,
       false,
-      null,
     );
     Renderer.updateContainer(
       <a>
@@ -111,7 +113,6 @@ describe('ReactFiberHostContext', () => {
       rootContext,
       ConcurrentRoot,
       false,
-      null,
     );
     Renderer.updateContainer(
       <a>

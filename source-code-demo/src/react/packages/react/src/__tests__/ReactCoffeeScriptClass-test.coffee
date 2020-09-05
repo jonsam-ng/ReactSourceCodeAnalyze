@@ -543,4 +543,3 @@ describe 'ReactCoffeeScriptClass', ->
     node = ReactDOM.findDOMNode(instance)
     expect(node).toBe container.firstChild
     undefined
-  undefined

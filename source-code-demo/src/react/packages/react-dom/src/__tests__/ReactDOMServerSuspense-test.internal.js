@@ -37,11 +37,9 @@ function initModules() {
   };
 }
 
-const {
-  itThrowsWhenRendering,
-  resetModules,
-  serverRender,
-} = ReactDOMServerIntegrationUtils(initModules);
+const {resetModules, serverRender, itRenders} = ReactDOMServerIntegrationUtils(
+  initModules,
+);
 
 describe('ReactDOMServerSuspense', () => {
   beforeEach(() => {
@@ -104,8 +102,8 @@ describe('ReactDOMServerSuspense', () => {
     );
   });
 
-  it('server renders a SuspenseList component and its children', async () => {
-    const example = (
+  itRenders('a SuspenseList component and its children', async render => {
+    const element = await render(
       <React.unstable_SuspenseList>
         <React.Suspense fallback="Loading A">
           <div>A</div>
@@ -113,9 +111,8 @@ describe('ReactDOMServerSuspense', () => {
         <React.Suspense fallback="Loading B">
           <div>B</div>
         </React.Suspense>
-      </React.unstable_SuspenseList>
+      </React.unstable_SuspenseList>,
     );
-    const element = await serverRender(example);
     const parent = element.parentNode;
     const divA = parent.children[0];
     expect(divA.tagName).toBe('DIV');
@@ -123,98 +120,5 @@ describe('ReactDOMServerSuspense', () => {
     const divB = parent.children[1];
     expect(divB.tagName).toBe('DIV');
     expect(divB.textContent).toBe('B');
-
-    ReactTestUtils.act(() => {
-      const root = ReactDOM.unstable_createSyncRoot(parent, {hydrate: true});
-      root.render(example);
-    });
-
-    const parent2 = element.parentNode;
-    const divA2 = parent2.children[0];
-    const divB2 = parent2.children[1];
-    expect(divA).toBe(divA2);
-    expect(divB).toBe(divB2);
-  });
-
-  itThrowsWhenRendering(
-    'a suspending component outside a Suspense node',
-    async render => {
-      await render(
-        <div>
-          <React.Suspense />
-          <AsyncText text="Children" />
-          <React.Suspense />
-        </div>,
-        1,
-      );
-    },
-    'Add a <Suspense fallback=...> component higher in the tree',
-  );
-
-  itThrowsWhenRendering(
-    'a suspending component without a Suspense above',
-    async render => {
-      await render(
-        <div>
-          <AsyncText text="Children" />
-        </div>,
-        1,
-      );
-    },
-    'Add a <Suspense fallback=...> component higher in the tree',
-  );
-
-  it('does not get confused by throwing null', () => {
-    function Bad() {
-      // eslint-disable-next-line no-throw-literal
-      throw null;
-    }
-
-    let didError;
-    let error;
-    try {
-      ReactDOMServer.renderToString(<Bad />);
-    } catch (err) {
-      didError = true;
-      error = err;
-    }
-    expect(didError).toBe(true);
-    expect(error).toBe(null);
-  });
-
-  it('does not get confused by throwing undefined', () => {
-    function Bad() {
-      // eslint-disable-next-line no-throw-literal
-      throw undefined;
-    }
-
-    let didError;
-    let error;
-    try {
-      ReactDOMServer.renderToString(<Bad />);
-    } catch (err) {
-      didError = true;
-      error = err;
-    }
-    expect(didError).toBe(true);
-    expect(error).toBe(undefined);
-  });
-
-  it('does not get confused by throwing a primitive', () => {
-    function Bad() {
-      // eslint-disable-next-line no-throw-literal
-      throw 'foo';
-    }
-
-    let didError;
-    let error;
-    try {
-      ReactDOMServer.renderToString(<Bad />);
-    } catch (err) {
-      didError = true;
-      error = err;
-    }
-    expect(didError).toBe(true);
-    expect(error).toBe('foo');
   });
 });

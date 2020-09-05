@@ -12,7 +12,7 @@
  * that support it.
  */
 
-import lowPriorityWarningWithoutStack from 'shared/lowPriorityWarningWithoutStack';
+import lowPriorityWarning from 'shared/lowPriorityWarning';
 import isValidElementType from 'shared/isValidElementType';
 import getComponentName from 'shared/getComponentName';
 import {
@@ -42,8 +42,6 @@ let propTypesMisspellWarningShown;
 if (__DEV__) {
   propTypesMisspellWarningShown = false;
 }
-
-const hasOwnProperty = Object.prototype.hasOwnProperty;
 
 function getDeclarationErrorAddendum() {
   if (ReactCurrentOwner.current) {
@@ -336,26 +334,12 @@ export function jsxWithValidation(
   // We don't want exception behavior to differ between dev and prod.
   // (Rendering will throw with a helpful message and as soon as the type is
   // fixed, the key warnings will appear.)
-
   if (validType) {
     const children = props.children;
     if (children !== undefined) {
       if (isStaticChildren) {
-        if (Array.isArray(children)) {
-          for (let i = 0; i < children.length; i++) {
-            validateChildKeys(children[i], type);
-          }
-
-          if (Object.freeze) {
-            Object.freeze(children);
-          }
-        } else {
-          warning(
-            false,
-            'React.jsx: Static children should always be an array. ' +
-              'You are likely explicitly calling React.jsxs or React.jsxDEV. ' +
-              'Use the Babel transform instead.',
-          );
+        for (let i = 0; i < children.length; i++) {
+          validateChildKeys(children[i], type);
         }
       } else {
         validateChildKeys(children, type);
@@ -363,7 +347,7 @@ export function jsxWithValidation(
     }
   }
 
-  if (hasOwnProperty.call(props, 'key')) {
+  if (props.key !== undefined) {
     warning(
       false,
       'React.jsx: Spreading a key to JSX is a deprecated pattern. ' +
@@ -477,7 +461,7 @@ export function createFactoryWithValidation(type) {
     Object.defineProperty(validatedFactory, 'type', {
       enumerable: false,
       get: function() {
-        lowPriorityWarningWithoutStack(
+        lowPriorityWarning(
           false,
           'Factory.type is deprecated. Access the class directly ' +
             'before passing it to createFactory.',

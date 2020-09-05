@@ -13,18 +13,12 @@ import type {RootTag} from 'shared/ReactRootTags';
 import type {TimeoutHandle, NoTimeout} from './ReactFiberHostConfig';
 import type {Thenable} from './ReactFiberWorkLoop';
 import type {Interaction} from 'scheduler/src/Tracing';
-import type {SuspenseHydrationCallbacks} from './ReactFiberSuspenseComponent';
-import type {ReactPriorityLevel} from './SchedulerWithReactIntegration';
 
 import {noTimeout} from './ReactFiberHostConfig';
 import {createHostRootFiber} from './ReactFiber';
 import {NoWork} from './ReactFiberExpirationTime';
-import {
-  enableSchedulerTracing,
-  enableSuspenseCallback,
-} from 'shared/ReactFeatureFlags';
+import {enableSchedulerTracing} from 'shared/ReactFeatureFlags';
 import {unstable_getThreadID} from 'scheduler/tracing';
-import {NoPriority} from './SchedulerWithReactIntegration';
 
 // TODO: This should be lifted into the renderer.
 export type Batch = {
@@ -41,10 +35,17 @@ type BaseFiberRootProperties = {|
   tag: RootTag,
 
   // Any additional information from the host associated with this root.
+  //root节点，也就是ReactDOM.render(<App />, document.getElementById('root'))的第二个参数
   containerInfo: any,
   // Used only by persistent updates.
+  //只有在持久更新中才会用到，也就是不支持增量更新的平台会用到，react-dom不会用到
+  //也就是不更新某一块地方，而是整个应用完全更新
   pendingChildren: any,
   // The currently active root fiber. This is the mutable root of the tree.
+  //当前应用root节点对应的Fiber对象，即Root Fiber
+  //ReactElement会有一个树结构，同时一个ReactElement对应一个Fiber对象，
+  //所以Fiber也会有树结构
+  //current:Fiber对象 对应的是 root 节点，即整个应用根对象
   current: Fiber,
 
   pingCache:
@@ -52,16 +53,28 @@ type BaseFiberRootProperties = {|
     | Map<Thenable, Set<ExpirationTime>>
     | null,
 
+  //任务有三种，优先级有高低：
+  //（1）没有提交的任务
+  //（2）没有提交的被挂起的任务
+  //（3）没有提交的可能被挂起的任务
+
+  //当前更新对应的过期时间
   finishedExpirationTime: ExpirationTime,
   // A finished work-in-progress HostRoot that's ready to be committed.
+  //已经完成任务的FiberRoot对象，如果你只有一个Root，那么该对象就是这个Root对应的Fiber或null
+  //在commit(提交)阶段只会处理该值对应的任务
   finishedWork: Fiber | null,
   // Timeout handle returned by setTimeout. Used to cancel a pending timeout, if
   // it's superseded by a new one.
+  // 在任务被挂起的时候，通过setTimeout设置的响应内容，
+  // 并且清理之前挂起的任务 还没触发的timeout
   timeoutHandle: TimeoutHandle | NoTimeout,
   // Top context object, used by renderSubtreeIntoContainer
+  //顶层context对象，只有主动调用renderSubtreeIntoContainer才会生效
   context: Object | null,
   pendingContext: Object | null,
   // Determines if we should attempt to hydrate on the initial mount
+  //用来判断 第一次渲染 是否需要融合
   +hydrate: boolean,
   // List of top-level batches. This list indicates whether a commit should be
   // deferred. Also contains completion callbacks.
@@ -70,21 +83,20 @@ type BaseFiberRootProperties = {|
   // Node returned by Scheduler.scheduleCallback
   callbackNode: *,
   // Expiration of the callback associated with this root
+  //跟root有关联的回调函数的时间
   callbackExpirationTime: ExpirationTime,
-  // Priority of the callback associated with this root
-  callbackPriority: ReactPriorityLevel,
   // The earliest pending expiration time that exists in the tree
+  //存在root中，最旧的挂起时间
+  //不确定是否挂起的状态（所有任务一开始均是该状态）
   firstPendingTime: ExpirationTime,
-  // The earliest suspended expiration time that exists in the tree
-  firstSuspendedTime: ExpirationTime,
-  // The latest suspended expiration time that exists in the tree
-  lastSuspendedTime: ExpirationTime,
-  // The next known expiration time after the suspended range
-  nextKnownPendingLevel: ExpirationTime,
-  // The latest time at which a suspended component pinged the root to
-  // render again
-  lastPingedTime: ExpirationTime,
-  lastExpiredTime: ExpirationTime,
+  // The latest pending expiration time that exists in the tree
+  //存在root中，最新的挂起时间
+  //不确定是否挂起的状态（所有任务一开始均是该状态）
+  lastPendingTime: ExpirationTime,
+  // The time at which a suspended component pinged the root to render again
+  //挂起的组件通知root再次渲染的时间
+  //通过一个promise被reslove并且可以重新尝试的优先级
+  pingTime: ExpirationTime,
 |};
 
 // The following attributes are only used by interaction tracing builds.
@@ -97,11 +109,6 @@ type ProfilingOnlyFiberRootProperties = {|
   pendingInteractionMap: PendingInteractionMap,
 |};
 
-// The follow fields are only used by enableSuspenseCallback for hydration.
-type SuspenseCallbackOnlyFiberRootProperties = {|
-  hydrationCallbacks: null | SuspenseHydrationCallbacks,
-|};
-
 // Exported FiberRoot type includes all properties,
 // To avoid requiring potentially error-prone :any casts throughout the project.
 // Profiling properties are only safe to access in profiling builds (when enableSchedulerTracing is true).
@@ -110,9 +117,8 @@ type SuspenseCallbackOnlyFiberRootProperties = {|
 export type FiberRoot = {
   ...BaseFiberRootProperties,
   ...ProfilingOnlyFiberRootProperties,
-  ...SuspenseCallbackOnlyFiberRootProperties,
 };
-
+//新建fiberRoot对象
 function FiberRootNode(containerInfo, tag, hydrate) {
   this.tag = tag;
   this.current = null;
@@ -127,145 +133,35 @@ function FiberRootNode(containerInfo, tag, hydrate) {
   this.hydrate = hydrate;
   this.firstBatch = null;
   this.callbackNode = null;
-  this.callbackPriority = NoPriority;
+  this.callbackExpirationTime = NoWork;
   this.firstPendingTime = NoWork;
-  this.firstSuspendedTime = NoWork;
-  this.lastSuspendedTime = NoWork;
-  this.nextKnownPendingLevel = NoWork;
-  this.lastPingedTime = NoWork;
-  this.lastExpiredTime = NoWork;
+  this.lastPendingTime = NoWork;
+  this.pingTime = NoWork;
 
   if (enableSchedulerTracing) {
     this.interactionThreadID = unstable_getThreadID();
     this.memoizedInteractions = new Set();
     this.pendingInteractionMap = new Map();
   }
-  if (enableSuspenseCallback) {
-    this.hydrationCallbacks = null;
-  }
 }
-
+//初始化fiberRoot和rootFiber
 export function createFiberRoot(
   containerInfo: any,
   tag: RootTag,
   hydrate: boolean,
-  hydrationCallbacks: null | SuspenseHydrationCallbacks,
 ): FiberRoot {
+  //新建fiberRoot对象
   const root: FiberRoot = (new FiberRootNode(containerInfo, tag, hydrate): any);
-  if (enableSuspenseCallback) {
-    root.hydrationCallbacks = hydrationCallbacks;
-  }
 
   // Cyclic construction. This cheats the type system right now because
   // stateNode is any.
+  //初始化RootFiber
   const uninitializedFiber = createHostRootFiber(tag);
+  //FiberRoot和RootFiber的关系
+  //FiberRoot.current = RootFiber
   root.current = uninitializedFiber;
+  //RootFiber.stateNode = FiberRoot
   uninitializedFiber.stateNode = root;
 
   return root;
-}
-
-export function isRootSuspendedAtTime(
-  root: FiberRoot,
-  expirationTime: ExpirationTime,
-): boolean {
-  const firstSuspendedTime = root.firstSuspendedTime;
-  const lastSuspendedTime = root.lastSuspendedTime;
-  return (
-    firstSuspendedTime !== NoWork &&
-    (firstSuspendedTime >= expirationTime &&
-      lastSuspendedTime <= expirationTime)
-  );
-}
-
-export function markRootSuspendedAtTime(
-  root: FiberRoot,
-  expirationTime: ExpirationTime,
-): void {
-  const firstSuspendedTime = root.firstSuspendedTime;
-  const lastSuspendedTime = root.lastSuspendedTime;
-  if (firstSuspendedTime < expirationTime) {
-    root.firstSuspendedTime = expirationTime;
-  }
-  if (lastSuspendedTime > expirationTime || firstSuspendedTime === NoWork) {
-    root.lastSuspendedTime = expirationTime;
-  }
-
-  if (expirationTime <= root.lastPingedTime) {
-    root.lastPingedTime = NoWork;
-  }
-
-  if (expirationTime <= root.lastExpiredTime) {
-    root.lastExpiredTime = NoWork;
-  }
-}
-
-export function markRootUpdatedAtTime(
-  root: FiberRoot,
-  expirationTime: ExpirationTime,
-): void {
-  // Update the range of pending times
-  const firstPendingTime = root.firstPendingTime;
-  if (expirationTime > firstPendingTime) {
-    root.firstPendingTime = expirationTime;
-  }
-
-  // Update the range of suspended times. Treat everything lower priority or
-  // equal to this update as unsuspended.
-  const firstSuspendedTime = root.firstSuspendedTime;
-  if (firstSuspendedTime !== NoWork) {
-    if (expirationTime >= firstSuspendedTime) {
-      // The entire suspended range is now unsuspended.
-      root.firstSuspendedTime = root.lastSuspendedTime = root.nextKnownPendingLevel = NoWork;
-    } else if (expirationTime >= root.lastSuspendedTime) {
-      root.lastSuspendedTime = expirationTime + 1;
-    }
-
-    // This is a pending level. Check if it's higher priority than the next
-    // known pending level.
-    if (expirationTime > root.nextKnownPendingLevel) {
-      root.nextKnownPendingLevel = expirationTime;
-    }
-  }
-}
-
-export function markRootFinishedAtTime(
-  root: FiberRoot,
-  finishedExpirationTime: ExpirationTime,
-  remainingExpirationTime: ExpirationTime,
-): void {
-  // Update the range of pending times
-  root.firstPendingTime = remainingExpirationTime;
-
-  // Update the range of suspended times. Treat everything higher priority or
-  // equal to this update as unsuspended.
-  if (finishedExpirationTime <= root.lastSuspendedTime) {
-    // The entire suspended range is now unsuspended.
-    root.firstSuspendedTime = root.lastSuspendedTime = root.nextKnownPendingLevel = NoWork;
-  } else if (finishedExpirationTime <= root.firstSuspendedTime) {
-    // Part of the suspended range is now unsuspended. Narrow the range to
-    // include everything between the unsuspended time (non-inclusive) and the
-    // last suspended time.
-    root.firstSuspendedTime = finishedExpirationTime - 1;
-  }
-
-  if (finishedExpirationTime <= root.lastPingedTime) {
-    // Clear the pinged time
-    root.lastPingedTime = NoWork;
-  }
-
-  if (finishedExpirationTime <= root.lastExpiredTime) {
-    // Clear the expired time
-    root.lastExpiredTime = NoWork;
-  }
-}
-
-export function markRootExpiredAtTime(
-  root: FiberRoot,
-  expirationTime: ExpirationTime,
-): void {
-  const lastExpiredTime = root.lastExpiredTime;
-  if (lastExpiredTime === NoWork || lastExpiredTime > expirationTime) {
-    root.lastExpiredTime = expirationTime;
-  }
 }

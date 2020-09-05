@@ -12,11 +12,14 @@ import type {Dispatcher} from 'react-reconciler/src/ReactFiberHooks';
 /**
  * Keeps track of the current dispatcher.
  */
+
 const ReactCurrentDispatcher = {
   /**
    * @internal
    * @type {ReactComponent}
    */
+  //current对应渲染的某一节点
+  //那么何时是赋值成 Dispatcher 呢？
   current: (null: null | Dispatcher),
 };
 

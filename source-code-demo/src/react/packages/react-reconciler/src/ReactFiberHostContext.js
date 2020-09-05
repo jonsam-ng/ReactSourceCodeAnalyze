@@ -13,7 +13,11 @@ import type {Container, HostContext} from './ReactFiberHostConfig';
 
 import invariant from 'shared/invariant';
 
-import {getChildHostContext, getRootHostContext} from './ReactFiberHostConfig';
+import {
+  getChildHostContext,
+  getRootHostContext,
+  getChildHostContextForEventComponent,
+} from './ReactFiberHostConfig';
 import {createCursor, push, pop} from './ReactFiberStack';
 
 declare class NoContextT {}
@@ -62,10 +66,13 @@ function pushHostContainer(fiber: Fiber, nextRootInstance: Container) {
   pop(contextStackCursor, fiber);
   push(contextStackCursor, nextRootContext, fiber);
 }
-
+//将 valueStack 栈中指定位置的 value 赋值给不同 StackCursor.current
 function popHostContainer(fiber: Fiber) {
+  //出栈，将 valueStack 栈中指定位置的 value 赋值给 contextStackCursor.current
   pop(contextStackCursor, fiber);
+  //同上，赋值给 contextFiberStackCursor.current
   pop(contextFiberStackCursor, fiber);
+  //同上，赋值给 rootInstanceStackCursor.current
   pop(rootInstanceStackCursor, fiber);
 }
 
@@ -92,13 +99,28 @@ function pushHostContext(fiber: Fiber): void {
   push(contextStackCursor, nextContext, fiber);
 }
 
+function pushHostContextForEventComponent(fiber: Fiber): void {
+  const context: HostContext = requiredContext(contextStackCursor.current);
+  const nextContext = getChildHostContextForEventComponent(context);
+
+  // Don't push this Fiber's context unless it's unique.
+  if (context === nextContext) {
+    return;
+  }
+
+  // Track the context and the Fiber that provided it.
+  // This enables us to pop only Fibers that provide unique contexts.
+  push(contextFiberStackCursor, fiber, fiber);
+  push(contextStackCursor, nextContext, fiber);
+}
+//只有当contextFiber的 current 是当前 fiber 时，才会出栈
 function popHostContext(fiber: Fiber): void {
   // Do not pop unless this Fiber provided the current context.
   // pushHostContext() only pushes Fibers that provide unique contexts.
   if (contextFiberStackCursor.current !== fiber) {
     return;
   }
-
+  //从后往前，将栈 valueStack 内的元素出栈赋值
   pop(contextStackCursor, fiber);
   pop(contextFiberStackCursor, fiber);
 }
@@ -110,4 +132,5 @@ export {
   popHostContext,
   pushHostContainer,
   pushHostContext,
+  pushHostContextForEventComponent,
 };

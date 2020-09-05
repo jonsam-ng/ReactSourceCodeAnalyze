@@ -21,6 +21,7 @@ import {
   ContextConsumer,
   Mode,
   SuspenseComponent,
+  DehydratedSuspenseComponent,
 } from 'shared/ReactWorkTags';
 
 type MeasurementPhase =
@@ -222,12 +223,15 @@ export function recordEffect(): void {
     effectCountInCurrentCommit++;
   }
 }
-
+//测试环境
 export function recordScheduleUpdate(): void {
+  //当enableUserTimingAPI=__DEV__的时候
   if (enableUserTimingAPI) {
+    //提交的时候，设为true
     if (isCommitting) {
       hasScheduledUpdateInCurrentCommit = true;
     }
+    //render和rerender的时候设为true
     if (
       currentPhase !== null &&
       currentPhase !== 'componentWillMount' &&
@@ -316,7 +320,8 @@ export function stopFailedWorkTimer(fiber: Fiber): void {
     }
     fiber._debugIsCurrentlyTiming = false;
     const warning =
-      fiber.tag === SuspenseComponent
+      fiber.tag === SuspenseComponent ||
+      fiber.tag === DehydratedSuspenseComponent
         ? 'Rendering was suspended'
         : 'An error was thrown inside this error boundary';
     endFiberMark(fiber, null, warning);
@@ -352,7 +357,7 @@ export function stopPhaseTimer(): void {
     currentPhaseFiber = null;
   }
 }
-
+//绑定currentFiber
 export function startWorkLoopTimer(nextUnitOfWork: Fiber | null): void {
   if (enableUserTimingAPI) {
     currentFiber = nextUnitOfWork;

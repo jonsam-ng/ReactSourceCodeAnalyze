@@ -19,10 +19,6 @@ let createReactNativeComponentClass;
 let UIManager;
 let NativeMethodsMixin;
 
-const DISPATCH_COMMAND_REQUIRES_HOST_COMPONENT =
-  "Warning: dispatchCommand was called with a ref that isn't a " +
-  'native component. Use React.forwardRef to get access to the underlying native component';
-
 const SET_NATIVE_PROPS_DEPRECATION_MESSAGE =
   'Warning: Calling ref.setNativeProps(nativeProps) ' +
   'is deprecated and will be removed in a future release. ' +
@@ -110,85 +106,6 @@ describe('ReactNative', () => {
     // Call updateView for both changed text and properties.
     ReactNative.render(<Text foo="c">3</Text>, 11);
     expect(UIManager.updateView).toHaveBeenCalledTimes(4);
-  });
-
-  it('should call dispatchCommand for native refs', () => {
-    const View = createReactNativeComponentClass('RCTView', () => ({
-      validAttributes: {foo: true},
-      uiViewClassName: 'RCTView',
-    }));
-
-    [View].forEach(Component => {
-      UIManager.dispatchViewManagerCommand.mockClear();
-
-      let viewRef;
-      ReactNative.render(
-        <Component
-          ref={ref => {
-            viewRef = ref;
-          }}
-        />,
-        11,
-      );
-
-      expect(UIManager.dispatchViewManagerCommand).not.toBeCalled();
-      ReactNative.dispatchCommand(viewRef, 'updateCommand', [10, 20]);
-      expect(UIManager.dispatchViewManagerCommand).toHaveBeenCalledTimes(1);
-      expect(UIManager.dispatchViewManagerCommand).toHaveBeenCalledWith(
-        expect.any(Number),
-        'updateCommand',
-        [10, 20],
-      );
-    });
-  });
-
-  it('should warn and no-op if calling dispatchCommand on non native refs', () => {
-    const View = createReactNativeComponentClass('RCTView', () => ({
-      validAttributes: {foo: true},
-      uiViewClassName: 'RCTView',
-    }));
-
-    class BasicClass extends React.Component {
-      render() {
-        return <React.Fragment />;
-      }
-    }
-
-    class Subclass extends ReactNative.NativeComponent {
-      render() {
-        return <View />;
-      }
-    }
-
-    const CreateClass = createReactClass({
-      mixins: [NativeMethodsMixin],
-      render: () => {
-        return <View />;
-      },
-    });
-
-    [BasicClass, Subclass, CreateClass].forEach(Component => {
-      UIManager.dispatchViewManagerCommand.mockReset();
-
-      let viewRef;
-      ReactNative.render(
-        <Component
-          ref={ref => {
-            viewRef = ref;
-          }}
-        />,
-        11,
-      );
-
-      expect(UIManager.dispatchViewManagerCommand).not.toBeCalled();
-      expect(() => {
-        ReactNative.dispatchCommand(viewRef, 'updateCommand', [10, 20]);
-      }).toWarnDev([DISPATCH_COMMAND_REQUIRES_HOST_COMPONENT], {
-        withoutStack: true,
-      });
-
-      expect(UIManager.dispatchViewManagerCommand).not.toBeCalled();
-    });
   });
 
   it('should not call UIManager.updateView from ref.setNativeProps for properties that have not changed', () => {
@@ -669,12 +586,14 @@ describe('ReactNative', () => {
     expect(() => (match = ReactNative.findNodeHandle(parent))).toWarnDev([
       'Warning: findNodeHandle is deprecated in StrictMode. ' +
         'findNodeHandle was passed an instance of ContainsStrictModeChild which renders StrictMode children. ' +
-        'Instead, add a ref directly to the element you want to reference. ' +
-        'Learn more about using refs safely here: ' +
-        'https://fb.me/react-strict-mode-find-node' +
+        'Instead, add a ref directly to the element you want to reference.' +
+        '\n' +
         '\n    in RCTView (at **)' +
         '\n    in StrictMode (at **)' +
-        '\n    in ContainsStrictModeChild (at **)',
+        '\n    in ContainsStrictModeChild (at **)' +
+        '\n' +
+        '\nLearn more about using refs safely here:' +
+        '\nhttps://fb.me/react-strict-mode-find-node',
     ]);
     expect(match).toBe(child._nativeTag);
   });
@@ -705,12 +624,14 @@ describe('ReactNative', () => {
     expect(() => (match = ReactNative.findNodeHandle(parent))).toWarnDev([
       'Warning: findNodeHandle is deprecated in StrictMode. ' +
         'findNodeHandle was passed an instance of IsInStrictMode which is inside StrictMode. ' +
-        'Instead, add a ref directly to the element you want to reference. ' +
-        'Learn more about using refs safely here: ' +
-        'https://fb.me/react-strict-mode-find-node' +
+        'Instead, add a ref directly to the element you want to reference.' +
+        '\n' +
         '\n    in RCTView (at **)' +
         '\n    in IsInStrictMode (at **)' +
-        '\n    in StrictMode (at **)',
+        '\n    in StrictMode (at **)' +
+        '\n' +
+        '\nLearn more about using refs safely here:' +
+        '\nhttps://fb.me/react-strict-mode-find-node',
     ]);
     expect(match).toBe(child._nativeTag);
   });

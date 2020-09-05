@@ -229,7 +229,7 @@ describe('ReactDOMServerLifecycles', () => {
 
     expect(() =>
       ReactDOMServer.renderToString(<Component />),
-    ).toLowPriorityWarnDev('componentWillMount has been renamed', {
+    ).toLowPriorityWarnDev('componentWillMount() is deprecated', {
       withoutStack: true,
     });
     expect(log).toEqual(['componentWillMount', 'UNSAFE_componentWillMount']);
@@ -286,9 +286,10 @@ describe('ReactDOMServerLifecycles', () => {
 
     expect(() =>
       ReactDOMServer.renderToString(<Component />),
-    ).toLowPriorityWarnDev('componentWillMount has been renamed', {
-      withoutStack: true,
-    });
+    ).toLowPriorityWarnDev(
+      'Component: componentWillMount() is deprecated and will be removed in the next major version.',
+      {withoutStack: true},
+    );
   });
 
   it('should warn about deprecated lifecycle hooks', () => {
@@ -301,9 +302,11 @@ describe('ReactDOMServerLifecycles', () => {
 
     expect(() =>
       ReactDOMServer.renderToString(<Component />),
-    ).toLowPriorityWarnDev('componentWillMount has been renamed', {
-      withoutStack: true,
-    });
+    ).toLowPriorityWarnDev(
+      'Warning: Component: componentWillMount() is deprecated and will be removed ' +
+        'in the next major version.',
+      {withoutStack: true},
+    );
 
     // De-duped
     ReactDOMServer.renderToString(<Component />);

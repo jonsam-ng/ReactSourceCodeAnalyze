@@ -51,7 +51,10 @@ describe('create-react-class-integration', () => {
       });
 
       expect(() => ReactNative.render(<View />, 1)).toLowPriorityWarnDev(
-        'componentWillMount has been renamed',
+        'componentWillMount is deprecated and will be removed in the next major version. ' +
+          'Use componentDidMount instead. As a temporary workaround, ' +
+          'you can rename to UNSAFE_componentWillMount.' +
+          '\n\nPlease update the following components: MyNativeComponent',
         {withoutStack: true},
       );
     });
@@ -65,7 +68,9 @@ describe('create-react-class-integration', () => {
       });
 
       expect(() => ReactNative.render(<View />, 1)).toLowPriorityWarnDev(
-        'componentWillReceiveProps has been renamed',
+        'componentWillReceiveProps is deprecated and will be removed in the next major version. ' +
+          'Use static getDerivedStateFromProps instead.' +
+          '\n\nPlease update the following components: MyNativeComponent',
         {withoutStack: true},
       );
     });

@@ -131,7 +131,6 @@ type SecretInternalsFabricType = {
 export type ReactNativeType = {
   NativeComponent: typeof ReactNativeComponent,
   findNodeHandle(componentOrHandle: any): ?number,
-  dispatchCommand(handle: any, command: string, args: Array<any>): void,
   setNativeProps(handle: any, nativeProps: Object): void,
   render(
     element: React$Element<any>,
@@ -148,7 +147,6 @@ export type ReactNativeType = {
 export type ReactFabricType = {
   NativeComponent: typeof ReactNativeComponent,
   findNodeHandle(componentOrHandle: any): ?number,
-  dispatchCommand(handle: any, command: string, args: Array<any>): void,
   setNativeProps(handle: any, nativeProps: Object): void,
   render(
     element: React$Element<any>,
@@ -158,6 +156,17 @@ export type ReactFabricType = {
   unmountComponentAtNode(containerTag: number): any,
   __SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED: SecretInternalsFabricType,
 };
+
+export type ReactNativeEventResponderEventType =
+  | 'topMouseDown'
+  | 'topMouseMove'
+  | 'topMouseUp'
+  | 'topScroll'
+  | 'topSelectionChange'
+  | 'topTouchCancel'
+  | 'topTouchEnd'
+  | 'topTouchMove'
+  | 'topTouchStart';
 
 export type ReactNativeEventTarget = {
   node: Object,
@@ -192,13 +201,13 @@ export type ReactFaricEvent = {
 export type ReactNativeResponderEvent = {
   nativeEvent: ReactFaricEvent,
   target: null | ReactNativeEventTarget,
-  type: string,
+  type: ReactNativeEventResponderEventType,
 };
 
 export type ReactNativeResponderContext = {
   dispatchEvent: (
-    eventValue: any,
-    listener: (any) => void,
+    eventObject: Object,
+    listener: (Object) => void,
     eventPriority: EventPriority,
   ) => void,
   isTargetWithinNode: (
@@ -214,12 +223,18 @@ export type ReactNativeResponderContext = {
       bottom: number,
     }) => void,
   ): void,
-  addRootEventTypes: (rootEventTypes: Array<string>) => void,
-  removeRootEventTypes: (rootEventTypes: Array<string>) => void,
+  addRootEventTypes: (
+    rootEventTypes: Array<ReactNativeEventResponderEventType>,
+  ) => void,
+  removeRootEventTypes: (
+    rootEventTypes: Array<ReactNativeEventResponderEventType>,
+  ) => void,
+  getEventCurrentTarget(
+    event: ReactNativeResponderEvent,
+  ): ReactNativeEventTarget,
   setTimeout: (func: () => void, timeout: number) => number,
   clearTimeout: (timerId: number) => void,
   getTimeStamp: () => number,
-  getResponderNode(): ReactNativeEventTarget | null,
 };
 
 export type PointerType =
@@ -230,7 +245,7 @@ export type PointerType =
   | 'touch'
   | 'trackpad';
 
-export type EventPriority = 0 | 1 | 2;
+export opaque type EventPriority = 0 | 1 | 2;
 
 export const DiscreteEvent: EventPriority = 0;
 export const UserBlockingEvent: EventPriority = 1;

@@ -35,10 +35,7 @@ export function createDangerousStringForStyles(styles) {
       const styleValue = styles[styleName];
       if (styleValue != null) {
         const isCustomProperty = styleName.indexOf('--') === 0;
-        serialized +=
-          delimiter +
-          (isCustomProperty ? styleName : hyphenateStyleName(styleName)) +
-          ':';
+        serialized += delimiter + hyphenateStyleName(styleName) + ':';
         serialized += dangerousStyleValue(
           styleName,
           styleValue,
@@ -59,29 +56,32 @@ export function createDangerousStringForStyles(styles) {
  * @param {DOMElement} node
  * @param {object} styles
  */
+// 设置 style 的值
 export function setValueForStyles(node, styles) {
   const style = node.style;
   for (let styleName in styles) {
     if (!styles.hasOwnProperty(styleName)) {
       continue;
     }
+    //没有找到关于自定义样式名的资料。。
+    //可参考：https://zh-hans.reactjs.org/blog/2017/09/08/dom-attributes-in-react-16.html
     const isCustomProperty = styleName.indexOf('--') === 0;
-    if (__DEV__) {
-      if (!isCustomProperty) {
-        warnValidStyle(styleName, styles[styleName]);
-      }
-    }
+    //删除了 dev 代码
+    //确保样式的 value 是正确的
     const styleValue = dangerousStyleValue(
       styleName,
       styles[styleName],
       isCustomProperty,
     );
+    //将 float 属性重命名
+    //<div style={{float:'left',}}></div>
     if (styleName === 'float') {
       styleName = 'cssFloat';
     }
     if (isCustomProperty) {
       style.setProperty(styleName, styleValue);
     } else {
+      //正确设置 style 对象内的值
       style[styleName] = styleValue;
     }
   }

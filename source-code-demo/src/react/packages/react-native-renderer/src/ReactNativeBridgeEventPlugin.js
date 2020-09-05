@@ -7,14 +7,13 @@
  * @flow
  */
 
-import type {AnyNativeEvent} from 'legacy-events/PluginModuleType';
-import type {EventSystemFlags} from 'legacy-events/EventSystemFlags';
+import type {AnyNativeEvent} from 'events/PluginModuleType';
 import {
   accumulateTwoPhaseDispatches,
   accumulateDirectDispatches,
-} from 'legacy-events/EventPropagators';
-import type {TopLevelType} from 'legacy-events/TopLevelEventTypes';
-import SyntheticEvent from 'legacy-events/SyntheticEvent';
+} from 'events/EventPropagators';
+import type {TopLevelType} from 'events/TopLevelEventTypes';
+import SyntheticEvent from 'events/SyntheticEvent';
 import invariant from 'shared/invariant';
 
 // Module provided by RN:
@@ -33,7 +32,6 @@ const ReactNativeBridgeEventPlugin = {
    */
   extractEvents: function(
     topLevelType: TopLevelType,
-    eventSystemFlags: EventSystemFlags,
     targetInst: null | Object,
     nativeEvent: AnyNativeEvent,
     nativeEventTarget: Object,

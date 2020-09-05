@@ -6,7 +6,7 @@
  *
  * @flow strict
  */
-
+//dev即测试环境
 export const enableUserTimingAPI = __DEV__;
 
 // Helps identify side effects in begin-phase lifecycle hooks and setState reducers:
@@ -33,7 +33,6 @@ export const enableSchedulerTracing = __PROFILE__;
 
 // Only used in www builds.
 export const enableSuspenseServerRenderer = false; // TODO: __DEV__? Here it might just be false.
-export const enableSelectiveHydration = false;
 
 // Only used in www builds.
 export const enableSchedulerDebugging = false;
@@ -63,43 +62,16 @@ export const warnAboutDeprecatedSetNativeProps = false;
 // Experimental React Flare event system and event components support.
 export const enableFlareAPI = false;
 
-// Experimental Host Component support.
-export const enableFundamentalAPI = false;
-
-// Experimental Scope support.
-export const enableScopeAPI = false;
-
 // New API for JSX transforms to target - https://github.com/reactjs/rfcs/pull/107
 export const enableJSXTransformAPI = false;
 
 // We will enforce mocking scheduler with scheduler/unstable_mock at some point. (v17?)
 // Till then, we warn about the missing mock, but still fallback to a sync mode compatible version
-export const warnAboutUnmockedScheduler = false;
-
-// For tests, we flush suspense fallbacks in an act scope;
-// *except* in some of our own tests, where we test incremental loading states.
-export const flushSuspenseFallbacksInTests = true;
+export const warnAboutMissingMockScheduler = false;
+// Temporary flag to revert the fix in #15650
+export const revertPassiveEffectsChange = false;
 
 // Changes priority of some events like mousemove to user-blocking priority,
 // but without making them discrete. The flag exists in case it causes
 // starvation problems.
 export const enableUserBlockingEvents = false;
-
-// Add a callback property to suspense to notify which promises are currently
-// in the update queue. This allows reporting and tracing of what is causing
-// the user to see a loading state.
-// Also allows hydration callbacks to fire when a dehydrated boundary gets
-// hydrated or deleted.
-export const enableSuspenseCallback = false;
-
-// Part of the simplification of React.createElement so we can eventually move
-// from React.createElement to React.jsx
-// https://github.com/reactjs/rfcs/blob/createlement-rfc/text/0000-create-element-changes.md
-export const warnAboutDefaultPropsOnFunctionComponents = false;
-export const warnAboutStringRefs = false;
-
-export const disableLegacyContext = false;
-
-export const disableSchedulerTimeoutBasedOnReactExpirationTime = false;
-
-export const enableTrustedTypesIntegration = false;

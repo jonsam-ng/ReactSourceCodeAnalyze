@@ -346,7 +346,8 @@ describe('ReactIncrementalUpdates', () => {
     }
     ReactNoop.render(<Foo />);
     expect(() => expect(Scheduler).toFlushWithoutYielding()).toWarnDev(
-      'Using UNSAFE_componentWillReceiveProps in strict mode is not recommended',
+      'componentWillReceiveProps: Please update the following components ' +
+        'to use static getDerivedStateFromProps instead: Foo',
       {withoutStack: true},
     );
 
@@ -420,10 +421,10 @@ describe('ReactIncrementalUpdates', () => {
       render() {
         foo = this;
         return (
-          <>
+          <React.Fragment>
             <span prop={this.state.value} />
             <Bar />
-          </>
+          </React.Fragment>
         );
       }
     }

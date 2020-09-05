@@ -124,7 +124,7 @@ describe('ReactDOMFiberAsync', () => {
       expect(container.textContent).toEqual('Bye');
     });
 
-    it('deep updates (setState) are concurrent', () => {
+    it('deep updates (setState) are oncurrent', () => {
       let instance;
       class Component extends React.Component {
         state = {step: 0};
@@ -474,7 +474,8 @@ describe('ReactDOMFiberAsync', () => {
                 }
                 ref={submitButtonRef}>
                 Submit
-              </button>
+              </button>{' '}
+              : null}
             </div>
           );
         }
@@ -580,11 +581,11 @@ describe('ReactDOMFiberAsync', () => {
       }
 
       root.render(
-        <>
+        <React.Fragment>
           <Text text="A" />
           <Text text="B" />
           <Text text="C" />
-        </>,
+        </React.Fragment>,
       );
 
       // Nothing should have rendered yet

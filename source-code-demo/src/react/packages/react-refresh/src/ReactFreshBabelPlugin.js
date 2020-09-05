@@ -7,16 +7,16 @@
 
 'use strict';
 
-export default function(babel, opts = {}) {
+export default function(babel) {
   if (typeof babel.getEnv === 'function') {
     // Only available in Babel 7.
     const env = babel.getEnv();
-    if (env !== 'development' && !opts.skipEnvCheck) {
+    if (env !== 'development') {
       throw new Error(
         'React Refresh Babel transform should only be enabled in development environment. ' +
           'Instead, the environment is: "' +
           env +
-          '". If you want to override this check, pass {skipEnvCheck: true} as plugin options.',
+          '".',
       );
     }
   }
@@ -279,7 +279,7 @@ export default function(babel, opts = {}) {
     let forceReset = hasForceResetComment(scope.path);
     let customHooksInScope = [];
     customHooks.forEach(callee => {
-      // Check if a corresponding binding exists where we emit the signature.
+      // Check if a correponding binding exists where we emit the signature.
       let bindingName;
       switch (callee.type) {
         case 'MemberExpression':
@@ -300,20 +300,7 @@ export default function(babel, opts = {}) {
       }
     });
 
-    let finalKey = key;
-    if (typeof require === 'function' && !opts.emitFullSignatures) {
-      // Prefer to hash when we can (e.g. outside of ASTExplorer).
-      // This makes it deterministically compact, even if there's
-      // e.g. a useState ininitalizer with some code inside.
-      // We also need it for www that has transforms like cx()
-      // that don't understand if something is part of a string.
-      finalKey = require('crypto')
-        .createHash('sha1')
-        .update(key)
-        .digest('base64');
-    }
-
-    const args = [node, t.stringLiteral(finalKey)];
+    const args = [node, t.stringLiteral(key)];
     if (forceReset || customHooksInScope.length > 0) {
       args.push(t.booleanLiteral(forceReset));
     }
@@ -584,11 +571,6 @@ export default function(babel, opts = {}) {
 
           // The signature call is split in two parts. One part is called inside the function.
           // This is used to signal when first render happens.
-          if (path.node.body.type !== 'BlockStatement') {
-            path.node.body = t.blockStatement([
-              t.returnStatement(path.node.body),
-            ]);
-          }
           path
             .get('body')
             .unshiftContainer(

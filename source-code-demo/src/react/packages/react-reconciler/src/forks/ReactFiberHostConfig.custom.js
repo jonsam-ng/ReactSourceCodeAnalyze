@@ -42,6 +42,8 @@ export type EventResponder = any;
 export const getPublicInstance = $$$hostConfig.getPublicInstance;
 export const getRootHostContext = $$$hostConfig.getRootHostContext;
 export const getChildHostContext = $$$hostConfig.getChildHostContext;
+export const getChildHostContextForEventComponent =
+  $$$hostConfig.getChildHostContextForEventComponent;
 export const prepareForCommit = $$$hostConfig.prepareForCommit;
 export const resetAfterCommit = $$$hostConfig.resetAfterCommit;
 export const createInstance = $$$hostConfig.createInstance;
@@ -61,14 +63,9 @@ export const warnsIfNotActing = $$$hostConfig.warnsIfNotActing;
 export const supportsMutation = $$$hostConfig.supportsMutation;
 export const supportsPersistence = $$$hostConfig.supportsPersistence;
 export const supportsHydration = $$$hostConfig.supportsHydration;
-export const mountResponderInstance = $$$hostConfig.mountResponderInstance;
-export const unmountResponderInstance = $$$hostConfig.unmountResponderInstance;
-export const getFundamentalComponentInstance =
-  $$$hostConfig.getFundamentalComponentInstance;
-export const mountFundamentalComponent =
-  $$$hostConfig.mountFundamentalComponent;
-export const shouldUpdateFundamentalComponent =
-  $$$hostConfig.shouldUpdateFundamentalComponent;
+export const mountEventComponent = $$$hostConfig.mountEventComponent;
+export const updateEventComponent = $$$hostConfig.updateEventComponent;
+export const handleEventTarget = $$$hostConfig.handleEventTarget;
 
 // -------------------
 //      Mutation
@@ -88,10 +85,8 @@ export const hideInstance = $$$hostConfig.hideInstance;
 export const hideTextInstance = $$$hostConfig.hideTextInstance;
 export const unhideInstance = $$$hostConfig.unhideInstance;
 export const unhideTextInstance = $$$hostConfig.unhideTextInstance;
-export const updateFundamentalComponent =
-  $$$hostConfig.updateFundamentalComponent;
-export const unmountFundamentalComponent =
-  $$$hostConfig.unmountFundamentalComponent;
+export const unmountEventComponent = $$$hostConfig.unmountEventComponent;
+export const commitEventTarget = $$$hostConfig.commitEventTarget;
 
 // -------------------
 //     Persistence
@@ -106,7 +101,6 @@ export const finalizeContainerChildren =
 export const replaceContainerChildren = $$$hostConfig.replaceContainerChildren;
 export const cloneHiddenInstance = $$$hostConfig.cloneHiddenInstance;
 export const cloneHiddenTextInstance = $$$hostConfig.cloneHiddenTextInstance;
-export const cloneFundamentalInstance = $$$hostConfig.cloneInstance;
 
 // -------------------
 //     Hydration
@@ -126,12 +120,8 @@ export const getNextHydratableSibling = $$$hostConfig.getNextHydratableSibling;
 export const getFirstHydratableChild = $$$hostConfig.getFirstHydratableChild;
 export const hydrateInstance = $$$hostConfig.hydrateInstance;
 export const hydrateTextInstance = $$$hostConfig.hydrateTextInstance;
-export const hydrateSuspenseInstance = $$$hostConfig.hydrateSuspenseInstance;
 export const getNextHydratableInstanceAfterSuspenseInstance =
   $$$hostConfig.getNextHydratableInstanceAfterSuspenseInstance;
-export const commitHydratedContainer = $$$hostConfig.commitHydratedContainer;
-export const commitHydratedSuspenseInstance =
-  $$$hostConfig.commitHydratedSuspenseInstance;
 export const clearSuspenseBoundary = $$$hostConfig.clearSuspenseBoundary;
 export const clearSuspenseBoundaryFromContainer =
   $$$hostConfig.clearSuspenseBoundaryFromContainer;

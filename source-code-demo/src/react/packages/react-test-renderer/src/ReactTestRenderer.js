@@ -37,7 +37,6 @@ import {
   MemoComponent,
   SimpleMemoComponent,
   IncompleteClassComponent,
-  ScopeComponent,
 } from 'shared/ReactWorkTags';
 import invariant from 'shared/invariant';
 import ReactVersion from 'shared/ReactVersion';
@@ -204,7 +203,6 @@ function toTree(node: ?Fiber) {
     case ForwardRef:
     case MemoComponent:
     case IncompleteClassComponent:
-    case ScopeComponent:
       return childrenToTree(node.child);
     default:
       invariant(
@@ -444,7 +442,6 @@ const ReactTestRendererFiber = {
       container,
       isConcurrent ? ConcurrentRoot : LegacyRoot,
       false,
-      null,
     );
     invariant(root != null, 'something went wrong');
     updateContainer(element, root, null, null);

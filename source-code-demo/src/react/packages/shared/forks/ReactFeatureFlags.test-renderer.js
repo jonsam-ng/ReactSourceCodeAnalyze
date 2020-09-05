@@ -15,12 +15,11 @@ import typeof * as PersistentFeatureFlagsType from './ReactFeatureFlags.persiste
 export const debugRenderPhaseSideEffects = false;
 export const debugRenderPhaseSideEffectsForStrictMode = false;
 export const enableUserTimingAPI = __DEV__;
-export const warnAboutDeprecatedLifecycles = true;
+export const warnAboutDeprecatedLifecycles = false;
 export const replayFailedUnitOfWorkWithInvokeGuardedCallback = false;
-export const enableProfilerTimer = __PROFILE__;
-export const enableSchedulerTracing = __PROFILE__;
+export const enableProfilerTimer = false;
+export const enableSchedulerTracing = false;
 export const enableSuspenseServerRenderer = false;
-export const enableSelectiveHydration = false;
 export const disableJavaScriptURLs = false;
 export const disableInputAttributeSyncing = false;
 export const enableStableConcurrentModeAPIs = false;
@@ -28,18 +27,10 @@ export const warnAboutShorthandPropertyCollision = false;
 export const enableSchedulerDebugging = false;
 export const warnAboutDeprecatedSetNativeProps = false;
 export const enableFlareAPI = false;
-export const enableFundamentalAPI = false;
-export const enableScopeAPI = false;
 export const enableJSXTransformAPI = false;
-export const warnAboutUnmockedScheduler = false;
-export const flushSuspenseFallbacksInTests = true;
+export const warnAboutMissingMockScheduler = false;
+export const revertPassiveEffectsChange = false;
 export const enableUserBlockingEvents = false;
-export const enableSuspenseCallback = false;
-export const warnAboutDefaultPropsOnFunctionComponents = false;
-export const warnAboutStringRefs = false;
-export const disableLegacyContext = false;
-export const disableSchedulerTimeoutBasedOnReactExpirationTime = false;
-export const enableTrustedTypesIntegration = false;
 
 // Only used in www builds.
 export function addUserTimingListener() {

@@ -1,11 +1,3 @@
-/*
- * @Descripttion: 
- * @version: 
- * @Author: wuqingshan
- * @Date: 2020-09-01 18:27:20
- * @LastEditors: wuqingshan
- * @LastEditTime: 2020-09-01 19:32:27
- */
 /**
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
@@ -17,13 +9,16 @@
 import type {RefObject} from 'shared/ReactTypes';
 
 // an immutable object with a single mutable value
-// createRef返回类型RefObject
+//可修改value的 不可变的对象
+//没见过这种写法 :RefObject
 export function createRef(): RefObject {
+  //初始化ref对象，属性current初始值为null
   const refObject = {
     current: null,
   };
   if (__DEV__) {
+    //密封的对象,不可添加，删除属性，可以修改属性
     Object.seal(refObject);
   }
-  return refObject; // 返回一个Obj, 具有current属性。
+  return refObject;
 }

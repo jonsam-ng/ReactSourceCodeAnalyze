@@ -8,38 +8,13 @@
  */
 
 import type {Fiber} from './ReactFiber';
-import type {SuspenseInstance} from './ReactFiberHostConfig';
-import type {ExpirationTime} from './ReactFiberExpirationTime';
-import {SuspenseComponent, SuspenseListComponent} from 'shared/ReactWorkTags';
-import {NoEffect, DidCapture} from 'shared/ReactSideEffectTags';
-import {
-  isSuspenseInstancePending,
-  isSuspenseInstanceFallback,
-} from './ReactFiberHostConfig';
+import {SuspenseComponent} from 'shared/ReactWorkTags';
 
-export type SuspenseHydrationCallbacks = {
-  onHydrated?: (suspenseInstance: SuspenseInstance) => void,
-  onDeleted?: (suspenseInstance: SuspenseInstance) => void,
-};
+// TODO: This is now an empty object. Should we switch this to a boolean?
+// Alternatively we can make this use an effect tag similar to SuspenseList.
+export type SuspenseState = {||};
 
-// A null SuspenseState represents an unsuspended normal Suspense boundary.
-// A non-null SuspenseState means that it is blocked for one reason or another.
-// - A non-null dehydrated field means it's blocked pending hydration.
-//   - A non-null dehydrated field can use isSuspenseInstancePending or
-//     isSuspenseInstanceFallback to query the reason for being dehydrated.
-// - A null dehydrated field means it's blocked by something suspending and
-//   we're currently showing a fallback instead.
-export type SuspenseState = {|
-  // If this boundary is still dehydrated, we store the SuspenseInstance
-  // here to indicate that it is dehydrated (flag) and for quick access
-  // to check things like isSuspenseInstancePending.
-  dehydrated: null | SuspenseInstance,
-  // Represents the earliest expiration time we should attempt to hydrate
-  // a dehydrated boundary at. Never is the default.
-  retryTime: ExpirationTime,
-|};
-
-export type SuspenseListTailMode = 'collapsed' | 'hidden' | void;
+export type SuspenseListTailMode = 'collapsed' | void;
 
 export type SuspenseListRenderState = {|
   isBackwards: boolean,
@@ -53,9 +28,6 @@ export type SuspenseListRenderState = {|
   tailExpiration: number,
   // Tail insertions setting.
   tailMode: SuspenseListTailMode,
-  // Last Effect before we rendered the "rendering" item.
-  // Used to remove new effects added by the rendered item.
-  lastEffect: null | Fiber,
 |};
 
 export function shouldCaptureSuspense(
@@ -66,10 +38,6 @@ export function shouldCaptureSuspense(
   // fallback. Otherwise, don't capture and bubble to the next boundary.
   const nextState: SuspenseState | null = workInProgress.memoizedState;
   if (nextState !== null) {
-    if (nextState.dehydrated !== null) {
-      // A dehydrated boundary always captures.
-      return true;
-    }
     return false;
   }
   const props = workInProgress.memoizedProps;
@@ -90,30 +58,13 @@ export function shouldCaptureSuspense(
   return true;
 }
 
-export function findFirstSuspended(row: Fiber): null | Fiber {
+export function isShowingAnyFallbacks(row: Fiber): boolean {
   let node = row;
   while (node !== null) {
     if (node.tag === SuspenseComponent) {
       const state: SuspenseState | null = node.memoizedState;
       if (state !== null) {
-        const dehydrated: null | SuspenseInstance = state.dehydrated;
-        if (
-          dehydrated === null ||
-          isSuspenseInstancePending(dehydrated) ||
-          isSuspenseInstanceFallback(dehydrated)
-        ) {
-          return node;
-        }
-      }
-    } else if (
-      node.tag === SuspenseListComponent &&
-      // revealOrder undefined can't be trusted because it don't
-      // keep track of whether it suspended or not.
-      node.memoizedProps.revealOrder !== undefined
-    ) {
-      let didSuspend = (node.effectTag & DidCapture) !== NoEffect;
-      if (didSuspend) {
-        return node;
+        return true;
       }
     } else if (node.child !== null) {
       node.child.return = node;
@@ -121,16 +72,16 @@ export function findFirstSuspended(row: Fiber): null | Fiber {
       continue;
     }
     if (node === row) {
-      return null;
+      return false;
     }
     while (node.sibling === null) {
       if (node.return === null || node.return === row) {
-        return null;
+        return false;
       }
       node = node.return;
     }
     node.sibling.return = node.return;
     node = node.sibling;
   }
-  return null;
+  return false;
 }

@@ -39,30 +39,30 @@ import {
   findHostInstanceWithWarning,
   flushPassiveEffects,
   IsThisRendererActing,
-  attemptSynchronousHydration,
+  //reconciler 会去调节与平台（服务端，浏览器端）无关的节点操作、调度操作
 } from 'react-reconciler/inline.dom';
 import {createPortal as createPortalImpl} from 'shared/ReactPortal';
 import {canUseDOM} from 'shared/ExecutionEnvironment';
-import {setBatchingImplementation} from 'legacy-events/ReactGenericBatching';
+import {setBatchingImplementation} from 'events/ReactGenericBatching';
 import {
   setRestoreImplementation,
   enqueueStateRestore,
   restoreStateIfNeeded,
-} from 'legacy-events/ReactControlledComponent';
-import {injection as EventPluginHubInjection} from 'legacy-events/EventPluginHub';
-import {runEventsInBatch} from 'legacy-events/EventBatching';
-import {eventNameDispatchConfigs} from 'legacy-events/EventPluginRegistry';
+} from 'events/ReactControlledComponent';
+import {injection as EventPluginHubInjection} from 'events/EventPluginHub';
+import {runEventsInBatch} from 'events/EventBatching';
+import {eventNameDispatchConfigs} from 'events/EventPluginRegistry';
 import {
   accumulateTwoPhaseDispatches,
   accumulateDirectDispatches,
-} from 'legacy-events/EventPropagators';
+} from 'events/EventPropagators';
 import {LegacyRoot, ConcurrentRoot, BatchedRoot} from 'shared/ReactRootTags';
 import {has as hasInstance} from 'shared/ReactInstanceMap';
 import ReactVersion from 'shared/ReactVersion';
 import ReactSharedInternals from 'shared/ReactSharedInternals';
 import getComponentName from 'shared/getComponentName';
 import invariant from 'shared/invariant';
-import lowPriorityWarningWithoutStack from 'shared/lowPriorityWarningWithoutStack';
+import lowPriorityWarning from 'shared/lowPriorityWarning';
 import warningWithoutStack from 'shared/warningWithoutStack';
 import {enableStableConcurrentModeAPIs} from 'shared/ReactFeatureFlags';
 
@@ -71,12 +71,9 @@ import {
   getNodeFromInstance,
   getFiberCurrentPropsFromNode,
   getClosestInstanceFromNode,
-  markContainerAsRoot,
 } from './ReactDOMComponentTree';
 import {restoreControlledState} from './ReactDOMComponent';
 import {dispatchEvent} from '../events/ReactDOMEventListener';
-import {setAttemptSynchronousHydration} from '../events/ReactDOMEventReplaying';
-import {eagerlyTrapReplayableEvents} from '../events/ReactDOMEventReplaying';
 import {
   ELEMENT_NODE,
   COMMENT_NODE,
@@ -84,8 +81,6 @@ import {
   DOCUMENT_FRAGMENT_NODE,
 } from '../shared/HTMLNodeType';
 import {ROOT_ATTRIBUTE_NAME} from '../shared/DOMProperty';
-
-setAttemptSynchronousHydration(attemptSynchronousHydration);
 
 const ReactCurrentOwner = ReactSharedInternals.ReactCurrentOwner;
 
@@ -370,37 +365,20 @@ ReactWork.prototype._onCommit = function(): void {
   }
 };
 
-function createRootImpl(
-  container: DOMContainer,
-  tag: RootTag,
-  options: void | RootOptions,
-) {
-  // Tag is either LegacyRoot or Concurrent Root
-  const hydrate = options != null && options.hydrate === true;
-  const hydrationCallbacks =
-    (options != null && options.hydrationOptions) || null;
-  const root = createContainer(container, tag, hydrate, hydrationCallbacks);
-  markContainerAsRoot(root.current, container);
-  if (hydrate && tag !== LegacyRoot) {
-    const doc =
-      container.nodeType === DOCUMENT_NODE
-        ? container
-        : container.ownerDocument;
-    eagerlyTrapReplayableEvents(doc);
-  }
-  return root;
-}
-
+// container,0,false
 function ReactSyncRoot(
   container: DOMContainer,
   tag: RootTag,
-  options: void | RootOptions,
+  hydrate: boolean,
 ) {
-  this._internalRoot = createRootImpl(container, tag, options);
+  // Tag is either LegacyRoot or Concurrent Root
+  const root = createContainer(container, tag, hydrate);
+  this._internalRoot = root;
 }
 
-function ReactRoot(container: DOMContainer, options: void | RootOptions) {
-  this._internalRoot = createRootImpl(container, ConcurrentRoot, options);
+function ReactRoot(container: DOMContainer, hydrate: boolean) {
+  const root = createContainer(container, ConcurrentRoot, hydrate);
+  this._internalRoot = root;
 }
 
 ReactRoot.prototype.render = ReactSyncRoot.prototype.render = function(
@@ -483,24 +461,27 @@ function isValidContainer(node) {
         node.nodeValue === ' react-mount-point-unstable '))
   );
 }
-
+//获取Container里的RectRoot元素
+//返回document节点或第一个子节点
 function getReactRootElementInContainer(container: any) {
   if (!container) {
     return null;
   }
-
+  //DOCUMENT_NODE 即 window.document
   if (container.nodeType === DOCUMENT_NODE) {
     return container.documentElement;
   } else {
     return container.firstChild;
   }
 }
-
+//判断是否是服务端渲染
 function shouldHydrateDueToLegacyHeuristic(container) {
+  //获取container的第一个节点（根节点）
   const rootElement = getReactRootElementInContainer(container);
   return !!(
     rootElement &&
     rootElement.nodeType === ELEMENT_NODE &&
+    //判断是否是服务端渲染
     rootElement.hasAttribute(ROOT_ATTRIBUTE_NAME)
   );
 }
@@ -514,16 +495,22 @@ setBatchingImplementation(
 
 let warnedAboutHydrateAPI = false;
 
+//创建ReactRooter
 function legacyCreateRootFromDOMContainer(
   container: DOMContainer,
   forceHydrate: boolean,
 ): _ReactSyncRoot {
+  //是否是服务端渲染
   const shouldHydrate =
+    //render的forceHydrate是false，所以会调用shouldHydrateDueToLegacyHeuristic方法来判断是否是服务端渲染
     forceHydrate || shouldHydrateDueToLegacyHeuristic(container);
   // First clear any existing content.
+  //如果不是服务端渲染的话
   if (!shouldHydrate) {
     let warned = false;
     let rootSibling;
+    //循环删除container的子节点
+    //为什么要删除？因为React认为这些节点是不需要复用的
     while ((rootSibling = container.lastChild)) {
       if (__DEV__) {
         if (
@@ -546,7 +533,7 @@ function legacyCreateRootFromDOMContainer(
   if (__DEV__) {
     if (shouldHydrate && !forceHydrate && !warnedAboutHydrateAPI) {
       warnedAboutHydrateAPI = true;
-      lowPriorityWarningWithoutStack(
+      lowPriorityWarning(
         false,
         'render(): Calling ReactDOM.render() to hydrate server-rendered markup ' +
           'will stop working in React v17. Replace the ReactDOM.render() call ' +
@@ -556,17 +543,14 @@ function legacyCreateRootFromDOMContainer(
   }
 
   // Legacy roots are not batched.
-  return new ReactSyncRoot(
-    container,
-    LegacyRoot,
-    shouldHydrate
-      ? {
-          hydrate: true,
-        }
-      : undefined,
-  );
+  //container是空的container,0,false
+  //ReactRoot是同步的
+  //sync 同步
+  //async 异步
+  return new ReactSyncRoot(container, LegacyRoot, shouldHydrate);
 }
 
+// null, element, container, false, callback,
 function legacyRenderSubtreeIntoContainer(
   parentComponent: ?React$Component<any, any>,
   children: ReactNodeList,
@@ -581,24 +565,35 @@ function legacyRenderSubtreeIntoContainer(
 
   // TODO: Without `any` type, Flow says "Property cannot be accessed on any
   // member of intersection type." Whyyyyyy.
+
+  //render中一般渲染的是DOM标签，所以不会有_reactRootContainer存在，
+  // 所以第一次渲染，root是不存在的
   let root: _ReactSyncRoot = (container._reactRootContainer: any);
   let fiberRoot;
   if (!root) {
     // Initial mount
+    //创建一个ReactRooter
     root = container._reactRootContainer = legacyCreateRootFromDOMContainer(
       container,
       forceHydrate,
     );
     fiberRoot = root._internalRoot;
+
+    //判断是否有callback
     if (typeof callback === 'function') {
       const originalCallback = callback;
       callback = function() {
+        //根据fiberRoot获取公共Root实例
+        //就是fiberRoot.current.child.stateNode
         const instance = getPublicRootInstance(fiberRoot);
+        //通过该实例instance 去调用originalCallback方法
         originalCallback.call(instance);
       };
     }
     // Initial mount should not be batched.
+    //初始化安装不应该批量更新
     unbatchedUpdates(() => {
+      //element,fiberRoot,null,callback
       updateContainer(children, fiberRoot, parentComponent, callback);
     });
   } else {
@@ -663,7 +658,7 @@ const ReactDOM: Object = {
     }
     return findHostInstance(componentOrElement);
   },
-
+  //服务端使用hydrate方法渲染节点
   hydrate(element: React$Node, container: DOMContainer, callback: ?Function) {
     invariant(
       isValidContainer(container),
@@ -683,20 +678,26 @@ const ReactDOM: Object = {
       null,
       element,
       container,
+      //true是让服务端尽可能复用节点，提高性能
       true,
       callback,
     );
   },
 
   render(
+    //元素
     element: React$Element<any>,
+    //容器
     container: DOMContainer,
+    //应用渲染结束后，调用的函数
     callback: ?Function,
   ) {
+    //错误抓取
     invariant(
       isValidContainer(container),
       'Target container is not a DOM element.',
     );
+    //不看
     if (__DEV__) {
       warningWithoutStack(
         !container._reactHasBeenPassedToCreateRootDEV,
@@ -706,10 +707,12 @@ const ReactDOM: Object = {
         enableStableConcurrentModeAPIs ? 'createRoot' : 'unstable_createRoot',
       );
     }
+    //render方法本质是返回了函数legacyRenderSubtreeIntoContainer
     return legacyRenderSubtreeIntoContainer(
       null,
       element,
       container,
+      //render不会复用节点，因为是前端渲染
       false,
       callback,
     );
@@ -805,7 +808,7 @@ const ReactDOM: Object = {
   unstable_createPortal(...args) {
     if (!didWarnAboutUnstableCreatePortal) {
       didWarnAboutUnstableCreatePortal = true;
-      lowPriorityWarningWithoutStack(
+      lowPriorityWarning(
         false,
         'The ReactDOM.unstable_createPortal() alias has been deprecated, ' +
           'and will be removed in React 17+. Update your code to use ' +
@@ -853,13 +856,9 @@ const ReactDOM: Object = {
     ],
   },
 };
-
+//================ReactDOM end===========================
 type RootOptions = {
   hydrate?: boolean,
-  hydrationOptions?: {
-    onHydrated?: (suspenseNode: Comment) => void,
-    onDeleted?: (suspenseNode: Comment) => void,
-  },
 };
 
 function createRoot(
@@ -875,7 +874,8 @@ function createRoot(
     functionName,
   );
   warnIfReactDOMContainerInDEV(container);
-  return new ReactRoot(container, options);
+  const hydrate = options != null && options.hydrate === true;
+  return new ReactRoot(container, hydrate);
 }
 
 function createSyncRoot(
@@ -891,7 +891,8 @@ function createSyncRoot(
     functionName,
   );
   warnIfReactDOMContainerInDEV(container);
-  return new ReactSyncRoot(container, BatchedRoot, options);
+  const hydrate = options != null && options.hydrate === true;
+  return new ReactSyncRoot(container, BatchedRoot, hydrate);
 }
 
 function warnIfReactDOMContainerInDEV(container) {

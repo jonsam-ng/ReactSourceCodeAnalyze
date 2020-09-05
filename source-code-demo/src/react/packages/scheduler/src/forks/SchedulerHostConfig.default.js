@@ -5,10 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import {
-  enableIsInputPending,
-  enableMessageLoopImplementation,
-} from '../SchedulerFeatureFlags';
+import {enableIsInputPending} from '../SchedulerFeatureFlags';
 
 // The DOM Scheduler implementation is similar to requestIdleCallback. It
 // works by scheduling a requestAnimationFrame, storing the time for the start
@@ -26,6 +23,78 @@ export let shouldYieldToHost;
 export let requestPaint;
 export let getCurrentTime;
 export let forceFrameRate;
+
+const hasNativePerformanceNow =
+  typeof performance === 'object' && typeof performance.now === 'function';
+
+// We capture a local reference to any global, in case it gets polyfilled after
+// this module is initially evaluated. We want to be using a
+// consistent implementation.
+const localDate = Date;
+
+// This initialization code may run even on server environments if a component
+// just imports ReactDOM (e.g. for findDOMNode). Some environments might not
+// have setTimeout or clearTimeout. However, we always expect them to be defined
+// on the client. https://github.com/facebook/react/pull/13088
+const localSetTimeout =
+  typeof setTimeout === 'function' ? setTimeout : undefined;
+const localClearTimeout =
+  typeof clearTimeout === 'function' ? clearTimeout : undefined;
+
+// We don't expect either of these to necessarily be defined, but we will error
+// later if they are missing on the client.
+const localRequestAnimationFrame =
+  typeof requestAnimationFrame === 'function'
+    ? requestAnimationFrame
+    : undefined;
+const localCancelAnimationFrame =
+  typeof cancelAnimationFrame === 'function' ? cancelAnimationFrame : undefined;
+
+// requestAnimationFrame does not run when the tab is in the background. If
+// we're backgrounded we prefer for that work to happen so that the page
+// continues to load in the background. So we also schedule a 'setTimeout' as
+// a fallback.
+// TODO: Need a better heuristic for backgrounded work.
+//最晚执行时间为 100ms
+const ANIMATION_FRAME_TIMEOUT = 100;
+let rAFID;
+let rAFTimeoutID;
+//防止localRequestAnimationFrame长时间（100ms）内没有调用，
+//强制执行 callback 函数
+const requestAnimationFrameWithTimeout = function(callback) {
+  // schedule rAF and also a setTimeout
+  /*如果 A 执行了，则取消 B*/
+  //就是window.requestAnimationFrame API
+  //如果屏幕刷新率是 30Hz,即一帧是 33ms 的话，那么就是每 33ms 执行一次
+
+  //timestamp表示requestAnimationFrame() 开始去执行回调函数的时刻，是requestAnimationFrame自带的参数
+  rAFID = localRequestAnimationFrame(function(timestamp) {
+    // cancel the setTimeout
+    //已经比 B 先执行了，就取消 B 的执行
+    localClearTimeout(rAFTimeoutID);
+    callback(timestamp);
+  });
+  //如果超过 100ms 仍未执行的话
+  /*如果 B 执行了，则取消 A*/
+  rAFTimeoutID = localSetTimeout(function() {
+    // cancel the requestAnimationFrame
+    //取消 localRequestAnimationFrame
+    localCancelAnimationFrame(rAFID);
+    //直接调用回调函数
+    callback(getCurrentTime());
+  }, ANIMATION_FRAME_TIMEOUT);
+};
+
+if (hasNativePerformanceNow) {
+  const Performance = performance;
+  getCurrentTime = function() {
+    return Performance.now();
+  };
+} else {
+  getCurrentTime = function() {
+    return localDate.now();
+  };
+}
 
 if (
   // If Scheduler runs in a non-DOM environment, it falls back to a naive
@@ -51,10 +120,6 @@ if (
       }
     }
   };
-  const initialTime = Date.now();
-  getCurrentTime = function() {
-    return Date.now() - initialTime;
-  };
   requestHostCallback = function(cb) {
     if (_callback !== null) {
       // Protect against re-entrancy.
@@ -78,24 +143,16 @@ if (
   };
   requestPaint = forceFrameRate = function() {};
 } else {
-  // Capture local references to native APIs, in case a polyfill overrides them.
-  const performance = window.performance;
-  const Date = window.Date;
-  const setTimeout = window.setTimeout;
-  const clearTimeout = window.clearTimeout;
-  const requestAnimationFrame = window.requestAnimationFrame;
-  const cancelAnimationFrame = window.cancelAnimationFrame;
-
   if (typeof console !== 'undefined') {
     // TODO: Remove fb.me link
-    if (typeof requestAnimationFrame !== 'function') {
+    if (typeof localRequestAnimationFrame !== 'function') {
       console.error(
         "This browser doesn't support requestAnimationFrame. " +
           'Make sure that you load a ' +
           'polyfill in older browsers. https://fb.me/react-polyfills',
       );
     }
-    if (typeof cancelAnimationFrame !== 'function') {
+    if (typeof localCancelAnimationFrame !== 'function') {
       console.error(
         "This browser doesn't support cancelAnimationFrame. " +
           'Make sure that you load a ' +
@@ -104,37 +161,20 @@ if (
     }
   }
 
-  if (
-    typeof performance === 'object' &&
-    typeof performance.now === 'function'
-  ) {
-    getCurrentTime = () => performance.now();
-  } else {
-    const initialTime = Date.now();
-    getCurrentTime = () => Date.now() - initialTime;
-  }
-
-  let isRAFLoopRunning = false;
-  let isMessageLoopRunning = false;
   let scheduledHostCallback = null;
-  let rAFTimeoutID = -1;
-  let taskTimeoutID = -1;
+  let isMessageEventScheduled = false;
 
-  let frameLength = enableMessageLoopImplementation
-    ? // We won't attempt to align with the vsync. Instead we'll yield multiple
-      // times per frame, often enough to keep it responsive even at really
-      // high frame rates > 120.
-      5
-    : // Use a heuristic to measure the frame rate and yield at the end of the
-      // frame. We start out assuming that we run at 30fps but then the
-      // heuristic tracking will adjust this value to a faster fps if we get
-      // more frequent animation frames.
-      33.33;
+  let isAnimationFrameScheduled = false;
 
-  let prevRAFTime = -1;
-  let prevRAFInterval = -1;
+  let timeoutID = -1;
+
   let frameDeadline = 0;
-
+  // We start out assuming that we run at 30fps but then the heuristic tracking
+  // will adjust this value to a faster fps if we get more frequent animation
+  // frames.
+  let previousFrameTime = 33;
+  //保持浏览器每秒 30 帧的情况下，每一帧为 33ms
+  let activeFrameTime = 33;
   let fpsLocked = false;
 
   // TODO: Make this configurable
@@ -196,179 +236,152 @@ if (
       return;
     }
     if (fps > 0) {
-      frameLength = Math.floor(1000 / fps);
+      activeFrameTime = Math.floor(1000 / fps);
       fpsLocked = true;
     } else {
       // reset the framerate
-      frameLength = 33.33;
+      activeFrameTime = 33;
       fpsLocked = false;
     }
   };
 
-  const performWorkUntilDeadline = () => {
-    if (enableMessageLoopImplementation) {
-      if (scheduledHostCallback !== null) {
-        const currentTime = getCurrentTime();
-        // Yield after `frameLength` ms, regardless of where we are in the vsync
-        // cycle. This means there's always time remaining at the beginning of
-        // the message event.
-        frameDeadline = currentTime + frameLength;
-        const hasTimeRemaining = true;
-        try {
-          const hasMoreWork = scheduledHostCallback(
-            hasTimeRemaining,
-            currentTime,
-          );
-          if (!hasMoreWork) {
-            isMessageLoopRunning = false;
-            scheduledHostCallback = null;
-          } else {
-            // If there's more work, schedule the next message event at the end
-            // of the preceding one.
-            port.postMessage(null);
-          }
-        } catch (error) {
-          // If a scheduler task throws, exit the current browser task so the
-          // error can be observed.
-          port.postMessage(null);
-          throw error;
-        }
-      } else {
-        isMessageLoopRunning = false;
-      }
-      // Yielding to the browser will give it a chance to paint, so we can
-      // reset this.
-      needsPaint = false;
-    } else {
-      if (scheduledHostCallback !== null) {
-        const currentTime = getCurrentTime();
-        const hasTimeRemaining = frameDeadline - currentTime > 0;
-        try {
-          const hasMoreWork = scheduledHostCallback(
-            hasTimeRemaining,
-            currentTime,
-          );
-          if (!hasMoreWork) {
-            scheduledHostCallback = null;
-          }
-        } catch (error) {
-          // If a scheduler task throws, exit the current browser task so the
-          // error can be observed, and post a new task as soon as possible
-          // so we can continue where we left off.
-          port.postMessage(null);
-          throw error;
-        }
-      }
-      // Yielding to the browser will give it a chance to paint, so we can
-      // reset this.
-      needsPaint = false;
-    }
-  };
-
+  // We use the postMessage trick to defer idle work until after the repaint.
+  /*idleTick()*/
   const channel = new MessageChannel();
   const port = channel.port2;
-  channel.port1.onmessage = performWorkUntilDeadline;
-
-  const onAnimationFrame = rAFTime => {
-    if (scheduledHostCallback === null) {
-      // No scheduled work. Exit.
-      prevRAFTime = -1;
-      prevRAFInterval = -1;
-      isRAFLoopRunning = false;
-      return;
-    }
-
-    // Eagerly schedule the next animation callback at the beginning of the
-    // frame. If the scheduler queue is not empty at the end of the frame, it
-    // will continue flushing inside that callback. If the queue *is* empty,
-    // then it will exit immediately. Posting the callback at the start of the
-    // frame ensures it's fired within the earliest possible frame. If we
-    // waited until the end of the frame to post the callback, we risk the
-    // browser skipping a frame and not firing the callback until the frame
-    // after that.
-    isRAFLoopRunning = true;
-    requestAnimationFrame(nextRAFTime => {
-      clearTimeout(rAFTimeoutID);
-      onAnimationFrame(nextRAFTime);
-    });
-
-    // requestAnimationFrame is throttled when the tab is backgrounded. We
-    // don't want to stop working entirely. So we'll fallback to a timeout loop.
-    // TODO: Need a better heuristic for backgrounded work.
-    const onTimeout = () => {
-      frameDeadline = getCurrentTime() + frameLength / 2;
-      performWorkUntilDeadline();
-      rAFTimeoutID = setTimeout(onTimeout, frameLength * 3);
-    };
-    rAFTimeoutID = setTimeout(onTimeout, frameLength * 3);
-
-    if (
-      prevRAFTime !== -1 &&
-      // Make sure this rAF time is different from the previous one. This check
-      // could fail if two rAFs fire in the same frame.
-      rAFTime - prevRAFTime > 0.1
-    ) {
-      const rAFInterval = rAFTime - prevRAFTime;
-      if (!fpsLocked && prevRAFInterval !== -1) {
-        // We've observed two consecutive frame intervals. We'll use this to
-        // dynamically adjust the frame rate.
-        //
-        // If one frame goes long, then the next one can be short to catch up.
-        // If two frames are short in a row, then that's an indication that we
-        // actually have a higher frame rate than what we're currently
-        // optimizing. For example, if we're running on 120hz display or 90hz VR
-        // display. Take the max of the two in case one of them was an anomaly
-        // due to missed frame deadlines.
-        if (rAFInterval < frameLength && prevRAFInterval < frameLength) {
-          frameLength =
-            rAFInterval < prevRAFInterval ? prevRAFInterval : rAFInterval;
-          if (frameLength < 8.33) {
-            // Defensive coding. We don't support higher frame rates than 120hz.
-            // If the calculated frame length gets lower than 8, it is probably
-            // a bug.
-            frameLength = 8.33;
+  //当调用 port.postMessage(undefined) 就会执行该方法
+  channel.port1.onmessage = function(event) {
+    isMessageEventScheduled = false;
+    //有调度任务的话
+    if (scheduledHostCallback !== null) {
+      const currentTime = getCurrentTime();
+      const hasTimeRemaining = frameDeadline - currentTime > 0;
+      try {
+        const hasMoreWork = scheduledHostCallback(
+          hasTimeRemaining,
+          currentTime,
+        );
+        //仍有调度任务的话，继续执行帧调度
+        if (hasMoreWork) {
+          // Ensure the next frame is scheduled.
+          if (!isAnimationFrameScheduled) {
+            isAnimationFrameScheduled = true;
+            requestAnimationFrameWithTimeout(animationTick);
           }
+        } else {
+          scheduledHostCallback = null;
         }
+      } catch (error) {
+        // If a scheduler task throws, exit the current browser task so the
+        // error can be observed, and post a new task as soon as possible
+        // so we can continue where we left off.
+        //如果调度任务因为报错而中断了，React 尽可能退出当前浏览器执行的任务，
+        //继续执行下一个调度任务
+        isMessageEventScheduled = true;
+        port.postMessage(undefined);
+        throw error;
       }
-      prevRAFInterval = rAFInterval;
+      // Yielding to the browser will give it a chance to paint, so we can
+      // reset this.
+      //判断浏览器是否强制渲染的标志
+      needsPaint = false;
     }
-    prevRAFTime = rAFTime;
-    frameDeadline = rAFTime + frameLength;
-
-    // We use the postMessage trick to defer idle work until after the repaint.
-    port.postMessage(null);
   };
 
-  requestHostCallback = function(callback) {
-    scheduledHostCallback = callback;
-    if (enableMessageLoopImplementation) {
-      if (!isMessageLoopRunning) {
-        isMessageLoopRunning = true;
-        port.postMessage(null);
-      }
+  //计算每一帧中 react 进行调度任务的时长，并执行该 callback
+  const animationTick = function(rafTime) {
+    //如果不为 null 的话，立即请求下一帧重复做这件事
+    //这么做的原因是：调度队列有多个 callback，
+    // 不能保证在一个 callback 完成后，刚好能在下一帧继续执行下一个 callback，
+    //所以在当前 callback 存在的同时，执行下一帧的 callback
+    if (scheduledHostCallback !== null) {
+      // Eagerly schedule the next animation callback at the beginning of the
+      // frame. If the scheduler queue is not empty at the end of the frame, it
+      // will continue flushing inside that callback. If the queue *is* empty,
+      // then it will exit immediately. Posting the callback at the start of the
+      // frame ensures it's fired within the earliest possible frame. If we
+      // waited until the end of the frame to post the callback, we risk the
+      // browser skipping a frame and not firing the callback until the frame
+      // after that.
+      requestAnimationFrameWithTimeout(animationTick);
     } else {
-      if (!isRAFLoopRunning) {
-        // Start a rAF loop.
-        isRAFLoopRunning = true;
-        requestAnimationFrame(rAFTime => {
-          onAnimationFrame(rAFTime);
-        });
+      // No pending work. Exit.
+      //没有 callback 要被调度，退出
+      isAnimationFrameScheduled = false;
+      return;
+    }
+    //用来计算下一帧有多少时间是留给react 去执行调度的
+    //rafTime:requestAnimationFrame执行的时间
+    //frameDeadline:0 ，每一帧执行后，超出的时间
+    //activeFrameTime:33，每一帧的执行事件
+    let nextFrameTime = rafTime - frameDeadline + activeFrameTime;
+    //如果调度执行时间没有超过一帧时间
+    if (
+      nextFrameTime < activeFrameTime &&
+      previousFrameTime < activeFrameTime &&
+      !fpsLocked
+    ) {
+      //React 不支持每一帧比 8ms 还要短，即 120 帧
+      //小于 8ms 的话，强制至少有 8ms 来执行调度
+      if (nextFrameTime < 8) {
+        // Defensive coding. We don't support higher frame rates than 120hz.
+        // If the calculated frame time gets lower than 8, it is probably a bug.
+        nextFrameTime = 8;
+      }
+      // If one frame goes long, then the next one can be short to catch up.
+      // If two frames are short in a row, then that's an indication that we
+      // actually have a higher frame rate than what we're currently optimizing.
+      // We adjust our heuristic dynamically accordingly. For example, if we're
+      // running on 120hz display or 90hz VR display.
+      // Take the max of the two in case one of them was an anomaly due to
+      // missed frame deadlines.
+      //哪个长选哪个
+      //如果上个帧里的调度回调结束得早的话，那么就有多的时间给下个帧的调度时间
+      activeFrameTime =
+        nextFrameTime < previousFrameTime ? previousFrameTime : nextFrameTime;
+    } else {
+      previousFrameTime = nextFrameTime;
+    }
+    frameDeadline = rafTime + activeFrameTime;
+    //通知已经开始帧调度了
+    if (!isMessageEventScheduled) {
+      isMessageEventScheduled = true;
+      port.postMessage(undefined);
+    }
+  };
+
+  //在每一帧内执行调度任务（callback）
+  requestHostCallback = function(callback) {
+    if (scheduledHostCallback === null) {
+      //firstCallbackNode 传进来的 callback
+      scheduledHostCallback = callback;
+      //如果 react 在帧里面还未超时（即多占用了浏览器的时间）
+      //还未开始调度
+      if (!isAnimationFrameScheduled) {
+        // If rAF didn't already schedule one, we need to schedule a frame.
+        // TODO: If this rAF doesn't materialize because the browser throttles,
+        // we might want to still have setTimeout trigger rIC as a backup to
+        // ensure that we keep performing work.
+        //开始调度
+        isAnimationFrameScheduled = true;
+        requestAnimationFrameWithTimeout(animationTick);
       }
     }
   };
 
   cancelHostCallback = function() {
     scheduledHostCallback = null;
+    isMessageEventScheduled = false;
   };
 
   requestHostTimeout = function(callback, ms) {
-    taskTimeoutID = setTimeout(() => {
+    timeoutID = localSetTimeout(() => {
       callback(getCurrentTime());
     }, ms);
   };
 
   cancelHostTimeout = function() {
-    clearTimeout(taskTimeoutID);
-    taskTimeoutID = -1;
+    localClearTimeout(timeoutID);
+    timeoutID = -1;
   };
 }

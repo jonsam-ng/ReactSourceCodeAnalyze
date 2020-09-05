@@ -7,19 +7,16 @@
  * @flow
  */
 
-import type {
-  ReactContext,
-  ReactEventResponder,
-  ReactEventResponderListener,
-} from 'shared/ReactTypes';
+import type {ReactEventComponent, ReactContext} from 'shared/ReactTypes';
 import invariant from 'shared/invariant';
 import warning from 'shared/warning';
-import {REACT_RESPONDER_TYPE} from 'shared/ReactSymbols';
 
 import ReactCurrentDispatcher from './ReactCurrentDispatcher';
 
 function resolveDispatcher() {
+  //在ReactDOM进行渲染的时候，才会调用dispatcher
   const dispatcher = ReactCurrentDispatcher.current;
+  //应该是不正确使用dispatcher时报出的警告
   invariant(
     dispatcher !== null,
     'Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for' +
@@ -73,7 +70,7 @@ export function useContext<T>(
   }
   return dispatcher.useContext(Context, unstable_observedBits);
 }
-
+//[name,setName]=useState('chen')
 export function useState<S>(initialState: (() => S) | S) {
   const dispatcher = resolveDispatcher();
   return dispatcher.useState(initialState);
@@ -92,11 +89,12 @@ export function useRef<T>(initialValue: T): {current: T} {
   const dispatcher = resolveDispatcher();
   return dispatcher.useRef(initialValue);
 }
-
+//和useState一样，都是调用dispatcher上对应的方法
 export function useEffect(
   create: () => (() => void) | void,
   inputs: Array<mixed> | void | null,
 ) {
+  // const dispatcher = ReactCurrentDispatcher.current;
   const dispatcher = resolveDispatcher();
   return dispatcher.useEffect(create, inputs);
 }
@@ -143,20 +141,10 @@ export function useDebugValue(value: any, formatterFn: ?(value: any) => any) {
 
 export const emptyObject = {};
 
-export function useResponder(
-  responder: ReactEventResponder<any, any>,
-  listenerProps: ?Object,
-): ?ReactEventResponderListener<any, any> {
+export function useEvent<T, E, C>(
+  eventComponent: ReactEventComponent<T, E, C>,
+  props: null | Object,
+) {
   const dispatcher = resolveDispatcher();
-  if (__DEV__) {
-    if (responder == null || responder.$$typeof !== REACT_RESPONDER_TYPE) {
-      warning(
-        false,
-        'useResponder: invalid first argument. Expected an event responder, but instead got %s',
-        responder,
-      );
-      return;
-    }
-  }
-  return dispatcher.useResponder(responder, listenerProps || emptyObject);
+  return dispatcher.useEvent(eventComponent, props || emptyObject);
 }

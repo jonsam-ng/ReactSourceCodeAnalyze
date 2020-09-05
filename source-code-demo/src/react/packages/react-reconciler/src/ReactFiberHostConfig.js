@@ -8,7 +8,7 @@
  */
 
 /* eslint-disable react-internal/warning-and-invariant-args */
-export * from './forks/ReactFiberHostConfig.dom';
+
 import invariant from 'shared/invariant';
 
 // We expect that our Rollup, Jest, and Flow configurations
@@ -18,5 +18,5 @@ import invariant from 'shared/invariant';
 // We should never resolve to this file, but it exists to make
 // sure that if we *do* accidentally break the configuration,
 // the failure isn't silent.
-
-invariant(true, 'This module must be shimmed by a specific renderer.');
+//这个模块必须由一个特定的renderer进行调整
+invariant(false, 'This module must be shimmed by a specific renderer.');

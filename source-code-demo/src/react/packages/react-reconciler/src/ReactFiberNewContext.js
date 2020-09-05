@@ -25,7 +25,7 @@ import MAX_SIGNED_31_BIT_INT from './maxSigned31BitInt';
 import {
   ContextProvider,
   ClassComponent,
-  DehydratedFragment,
+  DehydratedSuspenseComponent,
 } from 'shared/ReactWorkTags';
 
 import invariant from 'shared/invariant';
@@ -249,20 +249,15 @@ export function propagateContextChange(
       nextFiber = fiber.type === workInProgress.type ? null : fiber.child;
     } else if (
       enableSuspenseServerRenderer &&
-      fiber.tag === DehydratedFragment
+      fiber.tag === DehydratedSuspenseComponent
     ) {
-      // If a dehydrated suspense bounudary is in this subtree, we don't know
+      // If a dehydrated suspense component is in this subtree, we don't know
       // if it will have any context consumers in it. The best we can do is
-      // mark it as having updates.
-      let parentSuspense = fiber.return;
-      invariant(
-        parentSuspense !== null,
-        'We just came from a parent so we must have had a parent. This is a bug in React.',
-      );
-      if (parentSuspense.expirationTime < renderExpirationTime) {
-        parentSuspense.expirationTime = renderExpirationTime;
+      // mark it as having updates on its children.
+      if (fiber.expirationTime < renderExpirationTime) {
+        fiber.expirationTime = renderExpirationTime;
       }
-      let alternate = parentSuspense.alternate;
+      let alternate = fiber.alternate;
       if (
         alternate !== null &&
         alternate.expirationTime < renderExpirationTime
@@ -273,7 +268,7 @@ export function propagateContextChange(
       // because we want to schedule this fiber as having work
       // on its children. We'll use the childExpirationTime on
       // this fiber to indicate that a context has changed.
-      scheduleWorkOnParentPath(parentSuspense, renderExpirationTime);
+      scheduleWorkOnParentPath(fiber, renderExpirationTime);
       nextFiber = fiber.sibling;
     } else {
       // Traverse down.
@@ -382,7 +377,7 @@ export function readContext<T>(
       currentlyRenderingFiber.dependencies = {
         expirationTime: NoWork,
         firstContext: contextItem,
-        responders: null,
+        events: null,
       };
     } else {
       // Append a new context item.

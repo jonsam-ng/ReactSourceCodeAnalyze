@@ -52,7 +52,7 @@ describe('ReactSuspenseFuzz', () => {
             const cleanUps = new Set();
             updates.forEach(({remountAfter}, i) => {
               const task = {
-                label: `Remount children after ${remountAfter}ms`,
+                label: `Remount childen after ${remountAfter}ms`,
               };
               const timeoutID = setTimeout(() => {
                 pendingTasks.delete(task);
@@ -354,7 +354,7 @@ Random seed is ${SEED}
     it('1', () => {
       const {Text, testResolvedOutput} = createFuzzer();
       testResolvedOutput(
-        <>
+        <React.Fragment>
           <Text
             initialDelay={20}
             text="A"
@@ -368,14 +368,14 @@ Random seed is ${SEED}
             />
             <Text text="C" />
           </Suspense>
-        </>,
+        </React.Fragment>,
       );
     });
 
     it('2', () => {
       const {Text, Container, testResolvedOutput} = createFuzzer();
       testResolvedOutput(
-        <>
+        <React.Fragment>
           <Suspense fallback="Loading...">
             <Text initialDelay={7200} text="A" />
           </Suspense>
@@ -386,14 +386,14 @@ Random seed is ${SEED}
               <Text initialDelay={9000} text="D" />
             </Container>
           </Suspense>
-        </>,
+        </React.Fragment>,
       );
     });
 
     it('3', () => {
       const {Text, Container, testResolvedOutput} = createFuzzer();
       testResolvedOutput(
-        <>
+        <React.Fragment>
           <Suspense fallback="Loading...">
             <Text
               initialDelay={3183}
@@ -420,7 +420,7 @@ Random seed is ${SEED}
             />
             <Text initialDelay={6732} text="D" />
           </Container>
-        </>,
+        </React.Fragment>,
       );
     });
   });

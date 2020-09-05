@@ -15,12 +15,14 @@ import type {Update} from './ReactUpdateQueue';
 import type {Thenable} from './ReactFiberWorkLoop';
 import type {SuspenseContext} from './ReactFiberSuspenseContext';
 
+import {unstable_wrap as Schedule_tracing_wrap} from 'scheduler/tracing';
 import getComponentName from 'shared/getComponentName';
 import warningWithoutStack from 'shared/warningWithoutStack';
 import {
   ClassComponent,
   HostRoot,
   SuspenseComponent,
+  DehydratedSuspenseComponent,
   IncompleteClassComponent,
 } from 'shared/ReactWorkTags';
 import {
@@ -30,6 +32,10 @@ import {
   ShouldCapture,
   LifecycleEffectMask,
 } from 'shared/ReactSideEffectTags';
+import {
+  enableSchedulerTracing,
+  enableSuspenseServerRenderer,
+} from 'shared/ReactFeatureFlags';
 import {NoMode, BatchedMode} from './ReactTypeOfMode';
 import {shouldCaptureSuspense} from './ReactFiberSuspenseComponent';
 
@@ -55,11 +61,15 @@ import {
   markLegacyErrorBoundaryAsFailed,
   isAlreadyFailedLegacyErrorBoundary,
   pingSuspendedRoot,
+  resolveRetryThenable,
   checkForWrongSuspensePriorityInDEV,
 } from './ReactFiberWorkLoop';
 
+import invariant from 'shared/invariant';
+
 import {Sync} from './ReactFiberExpirationTime';
 
+const PossiblyWeakSet = typeof WeakSet === 'function' ? WeakSet : Set;
 const PossiblyWeakMap = typeof WeakMap === 'function' ? WeakMap : Map;
 
 function createRootErrorUpdate(
@@ -100,9 +110,7 @@ function createClassErrorUpdate(
   const inst = fiber.stateNode;
   if (inst !== null && typeof inst.componentDidCatch === 'function') {
     update.callback = function callback() {
-      if (__DEV__) {
-        markFailedErrorBoundaryForHotReloading(fiber);
-      }
+      // 删除了 dev 代码
       if (typeof getDerivedStateFromError !== 'function') {
         // To preserve the preexisting retry behavior of error boundaries,
         // we keep track of which ones already failed during this batch.
@@ -119,24 +127,10 @@ function createClassErrorUpdate(
       this.componentDidCatch(error, {
         componentStack: stack !== null ? stack : '',
       });
-      if (__DEV__) {
-        if (typeof getDerivedStateFromError !== 'function') {
-          // If componentDidCatch is the only error boundary method defined,
-          // then it needs to call setState to recover from errors.
-          // If no state update is scheduled then the boundary will swallow the error.
-          warningWithoutStack(
-            fiber.expirationTime === Sync,
-            '%s: Error boundaries should implement getDerivedStateFromError(). ' +
-              'In that method, return a state update to display an error message or fallback UI.',
-            getComponentName(fiber.type) || 'Unknown',
-          );
-        }
-      }
+      //删除了 dev 代码
     };
   } else if (__DEV__) {
-    update.callback = () => {
-      markFailedErrorBoundaryForHotReloading(fiber);
-    };
+    // 删除了 dev 代码
   }
   return update;
 }
@@ -171,10 +165,13 @@ function attachPingListener(
       thenable,
       renderExpirationTime,
     );
+    if (enableSchedulerTracing) {
+      ping = Schedule_tracing_wrap(ping);
+    }
     thenable.then(ping, ping);
   }
 }
-
+//异常处理
 function throwException(
   root: FiberRoot,
   returnFiber: Fiber,
@@ -183,18 +180,23 @@ function throwException(
   renderExpirationTime: ExpirationTime,
 ) {
   // The source fiber did not complete.
+  //effectTag 置为 Incomplete
+  //判断节点更新的过程中出现异常
   sourceFiber.effectTag |= Incomplete;
   // Its effect list is no longer valid.
+  //清空 effect 链
   sourceFiber.firstEffect = sourceFiber.lastEffect = null;
 
+  //如果是suspend的情况
   if (
     value !== null &&
     typeof value === 'object' &&
+    //value 是一个 promise 对象
     typeof value.then === 'function'
   ) {
     // This is a thenable.
     const thenable: Thenable = (value: any);
-
+    //不看
     checkForWrongSuspensePriorityInDEV(sourceFiber);
 
     let hasInvisibleParentBoundary = hasSuspenseContext(
@@ -214,6 +216,7 @@ function throwException(
         // Stash the promise on the boundary fiber. If the boundary times out, we'll
         // attach another listener to flip the boundary back to its normal state.
         const thenables: Set<Thenable> = (workInProgress.updateQueue: any);
+        //清空目标节点的更新队列
         if (thenables === null) {
           const updateQueue = (new Set(): any);
           updateQueue.add(thenable);
@@ -247,7 +250,7 @@ function throwException(
               sourceFiber.tag = IncompleteClassComponent;
             } else {
               // When we try rendering again, we should not reuse the current fiber,
-              // since it's known to be in an inconsistent state. Use a force update to
+              // since it's known to be in an inconsistent state. Use a force updte to
               // prevent a bail out.
               const update = createUpdate(Sync, null);
               update.tag = ForceUpdate;
@@ -311,6 +314,39 @@ function throwException(
         workInProgress.expirationTime = renderExpirationTime;
 
         return;
+      } else if (
+        enableSuspenseServerRenderer &&
+        workInProgress.tag === DehydratedSuspenseComponent
+      ) {
+        attachPingListener(root, renderExpirationTime, thenable);
+
+        // Since we already have a current fiber, we can eagerly add a retry listener.
+
+        let retryCache = workInProgress.memoizedState;
+        if (retryCache === null) {
+          retryCache = workInProgress.memoizedState = new PossiblyWeakSet();
+          const current = workInProgress.alternate;
+          invariant(
+            current,
+            'A dehydrated suspense boundary must commit before trying to render. ' +
+              'This is probably a bug in React.',
+          );
+          current.memoizedState = retryCache;
+        }
+        // Memoize using the boundary fiber to prevent redundant listeners.
+        if (!retryCache.has(thenable)) {
+          retryCache.add(thenable);
+          let retry = resolveRetryThenable.bind(null, workInProgress, thenable);
+          if (enableSchedulerTracing) {
+            retry = Schedule_tracing_wrap(retry);
+          }
+          /*onResolveOrReject <=> retry*/
+          //绑定 thenable.then 到 retry
+          thenable.then(retry, retry);
+        }
+        workInProgress.effectTag |= ShouldCapture;
+        workInProgress.expirationTime = renderExpirationTime;
+        return;
       }
       // This boundary already captured during this render. Continue to the next
       // boundary.
@@ -331,15 +367,22 @@ function throwException(
   // We didn't find a boundary that could handle this type of exception. Start
   // over and traverse parent path again, this time treating the exception
   // as an error.
+  //设置workInProgressRootExitStatus=1，即 true
   renderDidError();
   value = createCapturedValue(value, sourceFiber);
   let workInProgress = returnFiber;
+  //非 suspense 的情况
+  //捕捉到一个错误，并向上遍历节点
   do {
+
     switch (workInProgress.tag) {
+
       case HostRoot: {
         const errorInfo = value;
+        //添加 ShouldCapture 的副作用
         workInProgress.effectTag |= ShouldCapture;
         workInProgress.expirationTime = renderExpirationTime;
+        //
         const update = createRootErrorUpdate(
           workInProgress,
           errorInfo,
@@ -348,11 +391,13 @@ function throwException(
         enqueueCapturedUpdate(workInProgress, update);
         return;
       }
+
       case ClassComponent:
         // Capture and retry
         const errorInfo = value;
         const ctor = workInProgress.type;
         const instance = workInProgress.stateNode;
+        //只会对声明了getDerivedStateFromError或 componentDidCatch的组件会进行操作
         if (
           (workInProgress.effectTag & DidCapture) === NoEffect &&
           (typeof ctor.getDerivedStateFromError === 'function' ||

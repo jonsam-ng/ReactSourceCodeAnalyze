@@ -13,13 +13,11 @@ import type {
   MeasureOnSuccessCallback,
   NativeMethodsMixinType,
   ReactNativeBaseComponentViewConfig,
+  ReactNativeEventResponderEventType,
   ReactNativeResponderEvent,
   ReactNativeResponderContext,
 } from './ReactNativeTypes';
-import type {
-  ReactEventResponder,
-  ReactEventResponderInstance,
-} from 'shared/ReactTypes';
+import type {ReactEventComponentInstance} from 'shared/ReactTypes';
 
 import {mountSafeCallback_NOT_REALLY_SAFE} from './NativeMethodsMixinUtils';
 import {create, diff} from './ReactNativeAttributePayload';
@@ -29,7 +27,7 @@ import warningWithoutStack from 'shared/warningWithoutStack';
 
 import {dispatchEvent} from './ReactFabricEventEmitter';
 import {
-  addRootEventTypesForResponderInstance,
+  addRootEventTypesForComponentInstance,
   mountEventResponder,
   unmountEventResponder,
 } from './ReactFabricEventResponderSystem';
@@ -67,12 +65,8 @@ const {get: getViewConfigForType} = ReactNativeViewConfigRegistry;
 // This means that they never overlap.
 let nextReactTag = 2;
 
-type ReactNativeEventResponderInstance = ReactEventResponderInstance<
-  ReactNativeResponderEvent,
-  ReactNativeResponderContext,
->;
-
-type ReactNativeEventResponder = ReactEventResponder<
+type ReactNativeEventComponentInstance = ReactEventComponentInstance<
+  ReactNativeEventResponderEventType,
   ReactNativeResponderEvent,
   ReactNativeResponderContext,
 >;
@@ -304,6 +298,13 @@ export function getChildHostContext(
   }
 }
 
+export function getChildHostContextForEventComponent(
+  parentHostContext: HostContext,
+) {
+  // TODO: add getChildHostContextForEventComponent implementation
+  return parentHostContext;
+}
+
 export function getPublicInstance(instance: Instance): * {
   return instance.canonical;
 }
@@ -443,51 +444,33 @@ export function replaceContainerChildren(
   newChildren: ChildSet,
 ): void {}
 
-export function mountResponderInstance(
-  responder: ReactNativeEventResponder,
-  responderInstance: ReactNativeEventResponderInstance,
-  props: Object,
-  state: Object,
-  instance: Instance,
+export function mountEventComponent(
+  eventComponentInstance: ReactNativeEventComponentInstance,
 ) {
   if (enableFlareAPI) {
+    const responder = eventComponentInstance.responder;
     const {rootEventTypes} = responder;
-    if (rootEventTypes !== null) {
-      addRootEventTypesForResponderInstance(responderInstance, rootEventTypes);
+    if (rootEventTypes !== undefined) {
+      addRootEventTypesForComponentInstance(
+        eventComponentInstance,
+        rootEventTypes,
+      );
     }
-    mountEventResponder(responder, responderInstance, props, state);
+    mountEventResponder(eventComponentInstance);
   }
 }
 
-export function unmountResponderInstance(
-  responderInstance: ReactNativeEventResponderInstance,
+export function updateEventComponent(
+  eventComponentInstance: ReactNativeEventComponentInstance,
+) {
+  // NO-OP, why might use this in the future
+}
+
+export function unmountEventComponent(
+  eventComponentInstance: ReactNativeEventComponentInstance,
 ): void {
   if (enableFlareAPI) {
     // TODO stop listening to targetEventTypes
-    unmountEventResponder(responderInstance);
+    unmountEventResponder(eventComponentInstance);
   }
-}
-
-export function getFundamentalComponentInstance(fundamentalInstance) {
-  throw new Error('Not yet implemented.');
-}
-
-export function mountFundamentalComponent(fundamentalInstance) {
-  throw new Error('Not yet implemented.');
-}
-
-export function shouldUpdateFundamentalComponent(fundamentalInstance) {
-  throw new Error('Not yet implemented.');
-}
-
-export function updateFundamentalComponent(fundamentalInstance) {
-  throw new Error('Not yet implemented.');
-}
-
-export function unmountFundamentalComponent(fundamentalInstance) {
-  throw new Error('Not yet implemented.');
-}
-
-export function cloneFundamentalInstance(fundamentalInstance) {
-  throw new Error('Not yet implemented.');
 }

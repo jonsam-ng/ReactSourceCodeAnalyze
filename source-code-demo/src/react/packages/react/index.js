@@ -10,7 +10,7 @@
 'use strict';
 
 const React = require('./src/React');
-console.log('源码测试',React)
+
 // TODO: decide on the top-level export form.
 // This is hacky but makes it work with both Rollup and Jest.
 module.exports = React.default || React;

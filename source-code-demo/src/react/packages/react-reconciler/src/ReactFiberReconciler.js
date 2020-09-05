@@ -16,23 +16,16 @@ import type {
   Container,
   PublicInstance,
 } from './ReactFiberHostConfig';
-import {FundamentalComponent} from 'shared/ReactWorkTags';
 import type {ReactNodeList} from 'shared/ReactTypes';
 import type {ExpirationTime} from './ReactFiberExpirationTime';
 import type {SuspenseConfig} from './ReactFiberSuspenseConfig';
-import type {SuspenseHydrationCallbacks} from './ReactFiberSuspenseComponent';
 
 import {
   findCurrentHostFiber,
   findCurrentHostFiberWithNoPortals,
 } from 'react-reconciler/reflection';
 import {get as getInstance} from 'shared/ReactInstanceMap';
-import {
-  HostComponent,
-  ClassComponent,
-  HostRoot,
-  SuspenseComponent,
-} from 'shared/ReactWorkTags';
+import {HostComponent, ClassComponent} from 'shared/ReactWorkTags';
 import getComponentName from 'shared/getComponentName';
 import invariant from 'shared/invariant';
 import warningWithoutStack from 'shared/warningWithoutStack';
@@ -64,7 +57,6 @@ import {
   flushDiscreteUpdates,
   flushPassiveEffects,
   warnIfNotScopedWithMatchingAct,
-  warnIfUnmockedScheduler,
   IsThisRendererActing,
 } from './ReactFiberWorkLoop';
 import {createUpdate, enqueueUpdate} from './ReactUpdateQueue';
@@ -76,6 +68,7 @@ import {
 } from './ReactCurrentFiber';
 import {StrictMode} from './ReactTypeOfMode';
 import {Sync} from './ReactFiberExpirationTime';
+import {revertPassiveEffectsChange} from 'shared/ReactFeatureFlags';
 import {requestCurrentSuspenseConfig} from './ReactFiberSuspenseConfig';
 import {
   scheduleRefresh,
@@ -114,6 +107,7 @@ if (__DEV__) {
 function getContextForSubtree(
   parentComponent: ?React$Component<any, any>,
 ): Object {
+  //root节点的话，就返回空对象
   if (!parentComponent) {
     return emptyContextObject;
   }
@@ -130,7 +124,7 @@ function getContextForSubtree(
 
   return parentContext;
 }
-
+//计划更新Root
 function scheduleRootUpdate(
   current: Fiber,
   element: ReactNodeList,
@@ -155,10 +149,12 @@ function scheduleRootUpdate(
       );
     }
   }
-
+  //创建更新的时间节点
   const update = createUpdate(expirationTime, suspenseConfig);
   // Caution: React DevTools currently depends on this property
   // being called "element".
+
+  //payload表示更新内容，这里是要更新ReactElement节点，包括其子树
   update.payload = {element};
 
   callback = callback === undefined ? null : callback;
@@ -172,12 +168,20 @@ function scheduleRootUpdate(
     update.callback = callback;
   }
 
+  if (revertPassiveEffectsChange) {
+    flushPassiveEffects();
+  }
+  //一整个React应用中，会有多次更新，而这多次更新均在更新队列中
   enqueueUpdate(current, update);
+  //进行任务调度
+  //当React进行Update后，就要进行调度
+  //即 根据任务的优先级去调度任务
+  //先执行优先级高的任务，
   scheduleWork(current, expirationTime);
 
   return expirationTime;
 }
-
+//在过期时间内，更新container
 export function updateContainerAtExpirationTime(
   element: ReactNodeList,
   container: OpaqueRoot,
@@ -187,6 +191,7 @@ export function updateContainerAtExpirationTime(
   callback: ?Function,
 ) {
   // TODO: If this is a nested container, this won't be the root.
+  //container.current就是fiber对象
   const current = container.current;
 
   if (__DEV__) {
@@ -200,7 +205,7 @@ export function updateContainerAtExpirationTime(
       }
     }
   }
-
+  //由于parentComponent为null,所以返回空对象{}
   const context = getContextForSubtree(parentComponent);
   if (container.context === null) {
     container.context = context;
@@ -267,9 +272,10 @@ function findHostInstanceWithWarning(
             false,
             '%s is deprecated in StrictMode. ' +
               '%s was passed an instance of %s which is inside StrictMode. ' +
-              'Instead, add a ref directly to the element you want to reference. ' +
-              'Learn more about using refs safely here: ' +
-              'https://fb.me/react-strict-mode-find-node%s',
+              'Instead, add a ref directly to the element you want to reference.' +
+              '\n%s' +
+              '\n\nLearn more about using refs safely here:' +
+              '\nhttps://fb.me/react-strict-mode-find-node',
             methodName,
             methodName,
             componentName,
@@ -280,9 +286,10 @@ function findHostInstanceWithWarning(
             false,
             '%s is deprecated in StrictMode. ' +
               '%s was passed an instance of %s which renders StrictMode children. ' +
-              'Instead, add a ref directly to the element you want to reference. ' +
-              'Learn more about using refs safely here: ' +
-              'https://fb.me/react-strict-mode-find-node%s',
+              'Instead, add a ref directly to the element you want to reference.' +
+              '\n%s' +
+              '\n\nLearn more about using refs safely here:' +
+              '\nhttps://fb.me/react-strict-mode-find-node',
             methodName,
             methodName,
             componentName,
@@ -295,16 +302,16 @@ function findHostInstanceWithWarning(
   }
   return findHostInstance(component);
 }
-
+//创建React容器
 export function createContainer(
   containerInfo: Container,
   tag: RootTag,
   hydrate: boolean,
-  hydrationCallbacks: null | SuspenseHydrationCallbacks,
 ): OpaqueRoot {
-  return createFiberRoot(containerInfo, tag, hydrate, hydrationCallbacks);
+  //创建FiberRoot
+  return createFiberRoot(containerInfo, tag, hydrate);
 }
-
+//更新Container
 export function updateContainer(
   element: ReactNodeList,
   container: OpaqueRoot,
@@ -312,15 +319,16 @@ export function updateContainer(
   callback: ?Function,
 ): ExpirationTime {
   const current = container.current;
+  //1073741823
   const currentTime = requestCurrentTime();
   if (__DEV__) {
     // $FlowExpectedError - jest isn't a global, and isn't recognized outside of tests
     if ('undefined' !== typeof jest) {
-      warnIfUnmockedScheduler(current);
       warnIfNotScopedWithMatchingAct(current);
     }
   }
   const suspenseConfig = requestCurrentSuspenseConfig();
+  //计算过期时间，这是React优先级更新非常重要的点
   const expirationTime = computeExpirationForFiber(
     currentTime,
     current,
@@ -351,10 +359,12 @@ export {
   flushPassiveEffects,
   IsThisRendererActing,
 };
-
+//获取root实例
 export function getPublicRootInstance(
   container: OpaqueRoot,
 ): React$Component<any, any> | PublicInstance | null {
+  //看到container.current，我就想到了ref（xxx.current）
+  //获取当前节点
   const containerFiber = container.current;
   if (!containerFiber.child) {
     return null;
@@ -364,21 +374,6 @@ export function getPublicRootInstance(
       return getPublicInstance(containerFiber.child.stateNode);
     default:
       return containerFiber.child.stateNode;
-  }
-}
-
-export function attemptSynchronousHydration(fiber: Fiber): void {
-  switch (fiber.tag) {
-    case HostRoot:
-      let root: FiberRoot = fiber.stateNode;
-      if (root.hydrate) {
-        // Flush the first scheduled "update".
-        flushRoot(root, root.firstPendingTime);
-      }
-      break;
-    case SuspenseComponent:
-      flushSync(() => scheduleWork(fiber, Sync));
-      break;
   }
 }
 
@@ -392,9 +387,6 @@ export function findHostInstanceWithNoPortals(
   const hostFiber = findCurrentHostFiberWithNoPortals(fiber);
   if (hostFiber === null) {
     return null;
-  }
-  if (hostFiber.tag === FundamentalComponent) {
-    return hostFiber.stateNode.instance;
   }
   return hostFiber.stateNode;
 }
@@ -450,6 +442,10 @@ if (__DEV__) {
       id--;
     }
     if (currentHook !== null) {
+      if (revertPassiveEffectsChange) {
+        flushPassiveEffects();
+      }
+
       const newState = copyWithSet(currentHook.memoizedState, path, value);
       currentHook.memoizedState = newState;
       currentHook.baseState = newState;
@@ -467,6 +463,9 @@ if (__DEV__) {
 
   // Support DevTools props for function components, forwardRef, memo, host components, etc.
   overrideProps = (fiber: Fiber, path: Array<string | number>, value: any) => {
+    if (revertPassiveEffectsChange) {
+      flushPassiveEffects();
+    }
     fiber.pendingProps = copyWithSet(fiber.memoizedProps, path, value);
     if (fiber.alternate) {
       fiber.alternate.pendingProps = fiber.pendingProps;
@@ -475,6 +474,9 @@ if (__DEV__) {
   };
 
   scheduleUpdate = (fiber: Fiber) => {
+    if (revertPassiveEffectsChange) {
+      flushPassiveEffects();
+    }
     scheduleWork(fiber, Sync);
   };
 
@@ -513,7 +515,5 @@ export function injectIntoDevTools(devToolsConfig: DevToolsConfig): boolean {
     scheduleRefresh: __DEV__ ? scheduleRefresh : null,
     scheduleRoot: __DEV__ ? scheduleRoot : null,
     setRefreshHandler: __DEV__ ? setRefreshHandler : null,
-    // Enables DevTools to append owner stacks to error messages in DEV mode.
-    getCurrentFiber: __DEV__ ? () => ReactCurrentFiberCurrent : null,
   });
 }

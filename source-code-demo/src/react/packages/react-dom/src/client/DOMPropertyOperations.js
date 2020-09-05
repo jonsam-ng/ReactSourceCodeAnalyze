@@ -16,9 +16,7 @@ import {
   OVERLOADED_BOOLEAN,
 } from '../shared/DOMProperty';
 import sanitizeURL from '../shared/sanitizeURL';
-import {toStringOrTrustedType} from './ToStringValue';
 import {disableJavaScriptURLs} from 'shared/ReactFeatureFlags';
-import {setAttribute, setAttributeNS} from './setAttribute';
 
 import type {PropertyInfo} from '../shared/DOMProperty';
 
@@ -124,6 +122,7 @@ export function getValueForAttribute(
  * @param {string} name
  * @param {*} value
  */
+//为 DOM 节点设置属性值
 export function setValueForProperty(
   node: Element,
   name: string,
@@ -144,7 +143,7 @@ export function setValueForProperty(
       if (value === null) {
         node.removeAttribute(attributeName);
       } else {
-        setAttribute(node, attributeName, toStringOrTrustedType(value));
+        node.setAttribute(attributeName, '' + (value: any));
       }
     }
     return;
@@ -170,21 +169,19 @@ export function setValueForProperty(
     const {type} = propertyInfo;
     let attributeValue;
     if (type === BOOLEAN || (type === OVERLOADED_BOOLEAN && value === true)) {
-      // If attribute type is boolean, we know for sure it won't be an execution sink
-      // and we won't require Trusted Type here.
       attributeValue = '';
     } else {
       // `setAttribute` with objects becomes only `[object]` in IE8/9,
       // ('' + value) makes it output the correct toString()-value.
-      attributeValue = toStringOrTrustedType(value);
+      attributeValue = '' + (value: any);
       if (propertyInfo.sanitizeURL) {
-        sanitizeURL(attributeValue.toString());
+        sanitizeURL(attributeValue);
       }
     }
     if (attributeNamespace) {
-      setAttributeNS(node, attributeNamespace, attributeName, attributeValue);
+      node.setAttributeNS(attributeNamespace, attributeName, attributeValue);
     } else {
-      setAttribute(node, attributeName, attributeValue);
+      node.setAttribute(attributeName, attributeValue);
     }
   }
 }

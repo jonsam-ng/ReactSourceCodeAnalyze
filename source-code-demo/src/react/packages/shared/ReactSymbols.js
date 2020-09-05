@@ -11,8 +11,20 @@
 // nor polyfill, then a plain number is used for performance.
 const hasSymbol = typeof Symbol === 'function' && Symbol.for;
 
+//使用symbol来标记每个react元素
+
+//根据key:react.element 找到注册表中对应的symbol，
+//如果注册表中没有，则全局注册一个
+//为防止冲突，加上了前缀react
+
+//https://mp.weixin.qq.com/s/_Ql3FQoDfiC1K9yqxDjvaA
+
+//防止受到xss攻击
 export const REACT_ELEMENT_TYPE = hasSymbol
   ? Symbol.for('react.element')
+  //兼容性，如果浏览器不支持symbol，则设置为数字 0xeac7，
+  //因为这个数字看起来像'react'
+  // https://www.jianshu.com/p/f93b8a400002
   : 0xeac7;
 export const REACT_PORTAL_TYPE = hasSymbol
   ? Symbol.for('react.portal')
@@ -51,13 +63,9 @@ export const REACT_SUSPENSE_LIST_TYPE = hasSymbol
   : 0xead8;
 export const REACT_MEMO_TYPE = hasSymbol ? Symbol.for('react.memo') : 0xead3;
 export const REACT_LAZY_TYPE = hasSymbol ? Symbol.for('react.lazy') : 0xead4;
-export const REACT_FUNDAMENTAL_TYPE = hasSymbol
-  ? Symbol.for('react.fundamental')
+export const REACT_EVENT_COMPONENT_TYPE = hasSymbol
+  ? Symbol.for('react.event_component')
   : 0xead5;
-export const REACT_RESPONDER_TYPE = hasSymbol
-  ? Symbol.for('react.responder')
-  : 0xead6;
-export const REACT_SCOPE_TYPE = hasSymbol ? Symbol.for('react.scope') : 0xead7;
 
 const MAYBE_ITERATOR_SYMBOL = typeof Symbol === 'function' && Symbol.iterator;
 const FAUX_ITERATOR_SYMBOL = '@@iterator';
