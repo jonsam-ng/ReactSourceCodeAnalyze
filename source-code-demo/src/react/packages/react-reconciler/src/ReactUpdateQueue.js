@@ -163,14 +163,18 @@ if (__DEV__) {
     currentlyProcessingQueue = null;
   };
 }
-
+/**
+* @desc 创建空的UpdateQueue对象
+* @param baseState: State
+* @returns UpdateQueue<State>
+*/
 export function createUpdateQueue<State>(baseState: State): UpdateQueue<State> {
   const queue: UpdateQueue<State> = {
     baseState,
-    firstUpdate: null,
-    lastUpdate: null,
-    firstCapturedUpdate: null,
-    lastCapturedUpdate: null,
+    firstUpdate: null, // 初次更新
+    lastUpdate: null, // 上次更新
+    firstCapturedUpdate: null, // ? 初次捕获更新
+    lastCapturedUpdate: null, // 最新捕获更新
     firstEffect: null,
     lastEffect: null,
     firstCapturedEffect: null,
@@ -227,39 +231,43 @@ export function createUpdate(
   }
   return update;
 }
-
+/**
+ * @description 将更新加入到队列（尾部）
+ * @param {*} queue 队列
+ * @param {*} update 更新
+ */
 function appendUpdateToQueue<State>(
   queue: UpdateQueue<State>,
   update: Update<State>,
 ) {
   // Append the update to the end of the list.
   if (queue.lastUpdate === null) {
-    // Queue is empty
-    queue.firstUpdate = queue.lastUpdate = update;
+    // Queue is empty // 空队列
+    queue.firstUpdate = queue.lastUpdate = update; // 头指针和尾指针都指向了update
   } else {
-    queue.lastUpdate.next = update;
-    queue.lastUpdate = update;
+    queue.lastUpdate.next = update; // 将update挂载到尾指针后面
+    queue.lastUpdate = update; // 将尾指针移动到update
   }
 }
 /**
-* @desc enqueueUpdate将update对象加入到队列，接受Fiber和update对象，Fiber本意为纤维
-* @param 
+* @desc enqueueUpdate将update对象加入到队列，
+* @param 接受Fiber和update对象，Fiber本意为纤维
 * @returns
 */
 export function enqueueUpdate<State>(fiber: Fiber, update: Update<State>) {
   // Update queues are created lazily.
-  const alternate = fiber.alternate;
+  const alternate = fiber.alternate; // ? fiber上的alternate是什么
   let queue1;
   let queue2;
   if (alternate === null) {
     // There's only one fiber.
     queue1 = fiber.updateQueue;
     queue2 = null;
-    if (queue1 === null) {
-      queue1 = fiber.updateQueue = createUpdateQueue(fiber.memoizedState);
+    if (queue1 === null) { // 当前没有队列
+      queue1 = fiber.updateQueue = createUpdateQueue(fiber.memoizedState); // 创建更新队列， fiber.memoizedState是baseState
     }
   } else {
-    // There are two owners.
+    // There are two owners.alternate不为null，表示有两个属主
     queue1 = fiber.updateQueue;
     queue2 = alternate.updateQueue;
     if (queue1 === null) {
@@ -282,20 +290,20 @@ export function enqueueUpdate<State>(fiber: Fiber, update: Update<State>) {
       }
     }
   }
-  if (queue2 === null || queue1 === queue2) {
+  if (queue2 === null || queue1 === queue2) { // 只有一个队列，将更新加入到队列
     // There's only a single queue.
     appendUpdateToQueue(queue1, update);
   } else {
     // There are two queues. We need to append the update to both queues,
     // while accounting for the persistent structure of the list — we don't
     // want the same update to be added multiple times.
-    if (queue1.lastUpdate === null || queue2.lastUpdate === null) {
+    if (queue1.lastUpdate === null || queue2.lastUpdate === null) { // 将更新加入到两个队列
       // One of the queues is not empty. We must add the update to both queues.
       appendUpdateToQueue(queue1, update);
       appendUpdateToQueue(queue2, update);
     } else {
       // Both queues are non-empty. The last update is the same in both lists,
-      // because of structural sharing. So, only append to one of the lists.
+      // because of structural sharing. So, only append to one of the lists. // last update相同则加入到其中一个队列
       appendUpdateToQueue(queue1, update);
       // But we still need to update the `lastUpdate` pointer of queue2.
       queue2.lastUpdate = update;

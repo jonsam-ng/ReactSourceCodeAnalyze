@@ -186,7 +186,7 @@ const classComponentUpdater = {
   // 状态更新后的回调函数callback和渲染的过期时间expirationTime等都会挂载在该对象上。
   // 然后将该update对象添加到更新队列中，并且产生一个调度任务。
   enqueueSetState(inst, payload, callback) {
-    const fiber = getInstance(inst); // fiber是inst的一个实例
+    const fiber = getInstance(inst); // ? fiber是inst的一个实例 fiber是什么？
     const currentTime = requestCurrentTime();
     const suspenseConfig = requestCurrentSuspenseConfig();
     const expirationTime = computeExpirationForFiber( // 
