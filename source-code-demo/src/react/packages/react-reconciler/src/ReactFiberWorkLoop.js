@@ -382,6 +382,11 @@ export function computeUniqueAsyncExpiration(): ExpirationTime {
   return result;
 }
 
+/**
+ * scheduleWork的别名，创建调度任务执行更新
+ * @param {*} fiber 
+ * @param {*} expirationTime 
+ */
 export function scheduleUpdateOnFiber(
   fiber: Fiber,
   expirationTime: ExpirationTime,
@@ -390,6 +395,10 @@ export function scheduleUpdateOnFiber(
   warnAboutInvalidUpdatesOnClassComponentsInDEV(fiber);
 
   const root = markUpdateTimeFromFiberToRoot(fiber, expirationTime);
+  console.log("调度任务中root是：", root);
+  // 关灯的打印情况：
+  // 调度任务中root： FiberRootNode {tag: 0, current: FiberNode, containerInfo: div#root, pendingChildren: null, pingCache: null, …}callbackExpirationTime: 0callbackNode: nullcallbackPriority: 90containerInfo: div#rootcontext: {}current: FiberNode {tag: 3, key: null, elementType: null, type: null, stateNode: FiberRootNode, …}finishedExpirationTime: 0finishedWork: nullfirstBatch: nullfirstPendingTime: 0firstSuspendedTime: 0hydrate: falseinteractionThreadID: 1lastExpiredTime: 0lastPingedTime: 0lastSuspendedTime: 0memoizedInteractions: Set(0) {}nextKnownPendingLevel: 0pendingChildren: nullpendingContext: nullpendingInteractionMap: Map(0) {}pingCache: nulltag: 0timeoutHandle: -1__proto__: Object
+  // 调度任务中root： FiberRootNode {tag: 0, current: FiberNode, containerInfo: div#root, pendingChildren: null, pingCache: null, …}
   if (root === null) {
     warnAboutUpdateOnUnmountedFiberInDEV(fiber);
     return;
@@ -400,6 +409,7 @@ export function scheduleUpdateOnFiber(
 
   // TODO: computeExpirationForFiber also reads the priority. Pass the
   // priority as an argument to that function and this one.
+  // 获得任务的优先级
   const priorityLevel = getCurrentPriorityLevel();
 
   if (expirationTime === Sync) {
@@ -471,6 +481,7 @@ function markUpdateTimeFromFiberToRoot(fiber, expirationTime) {
   let node = fiber.return;
   let root = null;
   if (node === null && fiber.tag === HostRoot) {
+    // root是fiber上挂载的节点
     root = fiber.stateNode;
   } else {
     while (node !== null) {

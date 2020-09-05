@@ -250,7 +250,7 @@ function appendUpdateToQueue<State>(
   }
 }
 /**
-* @desc enqueueUpdate将update对象加入到队列，
+* @desc enqueueUpdate将update对象加入到队列，创建队列或者将更新加入队列尾部
 * @param 接受Fiber和update对象，Fiber本意为纤维
 * @returns
 */
@@ -293,6 +293,7 @@ export function enqueueUpdate<State>(fiber: Fiber, update: Update<State>) {
   if (queue2 === null || queue1 === queue2) { // 只有一个队列，将更新加入到队列
     // There's only a single queue.
     appendUpdateToQueue(queue1, update);
+    console.log("只有一个队列,将更新加入到队列，更新update为:", update, "队列为：", queue1);
   } else {
     // There are two queues. We need to append the update to both queues,
     // while accounting for the persistent structure of the list — we don't
@@ -305,6 +306,7 @@ export function enqueueUpdate<State>(fiber: Fiber, update: Update<State>) {
       // Both queues are non-empty. The last update is the same in both lists,
       // because of structural sharing. So, only append to one of the lists. // last update相同则加入到其中一个队列
       appendUpdateToQueue(queue1, update);
+      console.log("有两个队列,将更新加入到队列，更新update为:", update, "队列为：", queue1);
       // But we still need to update the `lastUpdate` pointer of queue2.
       queue2.lastUpdate = update;
     }
@@ -375,6 +377,17 @@ function ensureWorkInProgressQueueIsAClone<State>(
   return queue;
 }
 
+/**
+ * getStateFromUpdate 
+ * 函数主要功能是将存储在更新对象update上的partialState与上一次的prevState进行对象合并，生成一个全新的状态 state。
+ * @param {*} workInProgress 
+ * @param {*} queue 
+ * @param {*} update 
+ * @param {*} prevState 
+ * @param {*} nextProps 
+ * @param {*} instance 
+ */
+
 function getStateFromUpdate<State>(
   workInProgress: Fiber,
   queue: UpdateQueue<State>,
@@ -384,6 +397,7 @@ function getStateFromUpdate<State>(
   instance: any,
 ): any {
   switch (update.tag) {
+    // ReplaceState
     case ReplaceState: {
       const payload = update.payload;
       if (typeof payload === 'function') {
@@ -407,11 +421,14 @@ function getStateFromUpdate<State>(
       // State object
       return payload;
     }
+    // CaptureUpdate
     case CaptureUpdate: {
       workInProgress.effectTag =
         (workInProgress.effectTag & ~ShouldCapture) | DidCapture;
     }
+    // UpdateState
     // Intentional fallthrough
+    // 调用setState会创建update对象，其属性tag当时被标记为UpdateState
     case UpdateState: {
       const payload = update.payload;
       let partialState;
@@ -435,13 +452,19 @@ function getStateFromUpdate<State>(
         // Partial state object
         partialState = payload;
       }
+      // partialState为空不做更新，no-ops
       if (partialState === null || partialState === undefined) {
         // Null and undefined are treated as no-ops.
         return prevState;
       }
+      // 将更新合并到原来的状态，返回一个新状态。此处通过Object.assign生成一个全新的状态state， state的引用地址发生了变化
+      // partialState：如果payload是函数，返回payload的调用，否则返回payload ;partialState用来更新prevState，得到nextState。
+      // ？ payload 是什么？
       // Merge the partial state and the previous state.
+      // Object.assign 进行的是浅拷贝，不是深拷贝。
       return Object.assign({}, prevState, partialState);
     }
+    // ForceUpdate
     case ForceUpdate: {
       hasForceUpdate = true;
       return prevState;
@@ -449,7 +472,17 @@ function getStateFromUpdate<State>(
   }
   return prevState;
 }
-
+/**
+ * React 组件渲染之前，我们通常会多次调用setState，每次调用setState都会产生一个 update 对象。
+ * 这些 update 对象会以链表的形式存在队列 queue 中。
+ * processUpdateQueue函数会对这个队列进行依次遍历，每次遍历会将上一次的prevState与 update 对象的partialState进行合并，
+ * 当完成所有遍历后，就能算出最终要更新的状态 state，此时会将其存储在 workInProgress 的memoizedState属性上。
+ * @param {*} workInProgress 
+ * @param {*} queue 
+ * @param {*} props 
+ * @param {*} instance 
+ * @param {*} renderExpirationTime 
+ */
 export function processUpdateQueue<State>(
   workInProgress: Fiber,
   queue: UpdateQueue<State>,
@@ -457,6 +490,8 @@ export function processUpdateQueue<State>(
   instance: any,
   renderExpirationTime: ExpirationTime,
 ): void {
+  console.log("开始处理更新链表：");
+  console.log("接收参数：", "workInProgress: Fiber", workInProgress, "queue: UpdateQueue<State>", queue, "props: any", props, "instance", instance, "renderExpirationTime", renderExpirationTime);
   hasForceUpdate = false;
 
   queue = ensureWorkInProgressQueueIsAClone(workInProgress, queue);
@@ -465,21 +500,30 @@ export function processUpdateQueue<State>(
     currentlyProcessingQueue = queue;
   }
 
+  // 获取上次状态prevState
   // These values may change as we process the queue.
   let newBaseState = queue.baseState;
   let newFirstUpdate = null;
   let newExpirationTime = NoWork;
 
+  /**
+   * 若在render之前多次调用了setState，则会产生多个update对象。这些update对象会以链表的形式存在queue中。
+   * 现在对这个更新队列进行依次遍历，并计算出最终要更新的状态state。
+   */
+  // 遍历更新列表以计算最终结果
   // Iterate through the list of updates to compute the result.
   let update = queue.firstUpdate;
   let resultState = newBaseState;
+  // 有更新
   while (update !== null) {
     const updateExpirationTime = update.expirationTime;
+    // 更新超时时间在渲染超时时间之前
     if (updateExpirationTime < renderExpirationTime) {
       // This update does not have sufficient priority. Skip it.
       if (newFirstUpdate === null) {
         // This is the first skipped update. It will be the first update in
         // the new list.
+        // 将update推迟到下一个更新列表，且作为newFirstUpdate。
         newFirstUpdate = update;
         // Since this is the first update that was skipped, the current result
         // is the new base state.
@@ -501,6 +545,11 @@ export function processUpdateQueue<State>(
       // update here.
       markRenderEventTimeAndConfig(updateExpirationTime, update.suspenseConfig);
 
+      /**
+       * resultState作为参数prevState传入getStateFromUpdate，然后getStateFromUpdate会合并生成
+       * 新的状态再次赋值给resultState。完成整个循环遍历，resultState即为最终要更新的state。
+       */
+
       // Process it and compute a new result.
       resultState = getStateFromUpdate(
         workInProgress,
@@ -510,8 +559,15 @@ export function processUpdateQueue<State>(
         props,
         instance,
       );
+      console.log("调用getStateFromUpdate，现在的resultState", resultState);
       const callback = update.callback;
       if (callback !== null) {
+        // |= 按位或然后赋值．
+        // 如
+        // i=1;//二进制为0001
+        // i|2;//2的二进制为0010 两个按位或为0011也就是3
+        // i|=2等价于i=i|2;
+        // 所以i为3
         workInProgress.effectTag |= Callback;
         // Set this to null, in case it was mutated during an aborted render.
         update.nextEffect = null;
@@ -523,6 +579,7 @@ export function processUpdateQueue<State>(
         }
       }
     }
+    // 遍历下一个update对象
     // Continue to the next update.
     update = update.next;
   }
@@ -603,6 +660,8 @@ export function processUpdateQueue<State>(
   // that regardless.
   markUnprocessedUpdateTime(newExpirationTime);
   workInProgress.expirationTime = newExpirationTime;
+  // 将处理后的resultState更新到workInProgess上
+  console.log("处理更新链表的结果：", resultState);
   workInProgress.memoizedState = resultState;
 
   if (__DEV__) {

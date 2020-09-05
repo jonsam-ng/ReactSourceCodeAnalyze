@@ -207,6 +207,7 @@ const classComponentUpdater = {
     // 加入状态更新队列
     enqueueUpdate(fiber, update);
     // 通过调度任务执行更新
+    // const scheduleWork = scheduleUpdateOnFiber
     scheduleWork(fiber, expirationTime);
   },
   enqueueReplaceState(inst, payload, callback) {
@@ -1035,6 +1036,13 @@ function resumeMountClassInstance(
 }
 
 // Invokes the update life-cycles and returns false if it shouldn't rerender.
+// 激活更新的生命周期
+/**
+ * updateClassInstance函数主要实现了以下几个功能：
+ • 遍历更新队列，产生一个全新的 state，并将其更新至组件实例的 state 上；
+ • 返回是否要进行更新的标识 shouldUpdate，该值的运行结果取决于shouldComponentUpdate生命周期函数执行结果或者PureComponent的浅比较结果；
+ • 如果 shouldUpdate 的值为true，则执行相应生命周期函数componentWillUpdate； 
+ * */
 function updateClassInstance(
   current: Fiber,
   workInProgress: Fiber,
@@ -1091,6 +1099,8 @@ function updateClassInstance(
   const oldState = workInProgress.memoizedState;
   let newState = (instance.state = oldState);
   let updateQueue = workInProgress.updateQueue;
+
+  // 如果更新队列不为空，则处理更新队列，并将最终要更新的state赋值给newState
   if (updateQueue !== null) {
     processUpdateQueue(
       workInProgress,
@@ -1099,6 +1109,7 @@ function updateClassInstance(
       instance,
       renderExpirationTime,
     );
+    // processUpdateQueue更新结果挂载在workInProgress.memoizedState上
     newState = workInProgress.memoizedState;
   }
 
@@ -1112,9 +1123,11 @@ function updateClassInstance(
     // effect even though we're bailing out, so that cWU/cDU are called.
     if (typeof instance.componentDidUpdate === 'function') {
       if (
+        // current和newProps都是传进来的
         oldProps !== current.memoizedProps ||
         oldState !== current.memoizedState
       ) {
+        // Update是从ReactSideEffectTags中引入的，应该是二进制
         workInProgress.effectTag |= Update;
       }
     }
@@ -1139,6 +1152,11 @@ function updateClassInstance(
     newState = workInProgress.memoizedState;
   }
 
+  /**
+   * shouldUpdate用于标识组件是否要进行渲染，其值取决于组件的shouldComponentUpdate生命周期执行结果，
+   * 亦或者PureComponent的浅比较的返回结果。
+   */
+
   const shouldUpdate =
     checkHasForceUpdateAfterProcessing() ||
     checkShouldComponentUpdate(
@@ -1150,10 +1168,13 @@ function updateClassInstance(
       newState,
       nextContext,
     );
-
+  
+    // 如果需要更新，则执行相应的生命周期函数
   if (shouldUpdate) {
     // In order to support react-lifecycles-compat polyfilled components,
     // Unsafe lifecycles should not be invoked for components using the new APIs.
+
+    // UNSAFE_componentWillUpdate或者componentWillUpdate，instance.componentWillUpdate(newProps, newState, nextContext);
     if (
       !hasNewLifecycles &&
       (typeof instance.UNSAFE_componentWillUpdate === 'function' ||
@@ -1168,13 +1189,16 @@ function updateClassInstance(
       }
       stopPhaseTimer();
     }
+    // 生命周期componentDidUpdate
     if (typeof instance.componentDidUpdate === 'function') {
       workInProgress.effectTag |= Update;
     }
+    // 生命周期getSnapshotBeforeUpdate
     if (typeof instance.getSnapshotBeforeUpdate === 'function') {
       workInProgress.effectTag |= Snapshot;
     }
   } else {
+    // shouldComponentUpdate反悔了false，即阻止了更新
     // If an update was already in progress, we should schedule an Update
     // effect even though we're bailing out, so that cWU/cDU are called.
     if (typeof instance.componentDidUpdate === 'function') {
@@ -1196,15 +1220,53 @@ function updateClassInstance(
 
     // If shouldComponentUpdate returned false, we should still update the
     // memoized props/state to indicate that this work can be reused.
+    // 将被阻止的的新的newProps，newState挂载到workInProgress上
     workInProgress.memoizedProps = newProps;
     workInProgress.memoizedState = newState;
   }
 
   // Update the existing instance's state, props, and context pointers even
   // if shouldComponentUpdate returns false.
+  // 不管shouldComponentUpdate返回什么，都要将newProps、newState挂载到instance上。
+  // instance是什么？开灯后的instance：
+  // ToggleLightWithClass {props: {…}, context: {…}, refs: {…}, updater: {…}, toggleLight: ƒ, …}
+  // context: {}
+  // props: {}
+  // refs: {}
+  // state: {light: true, music: true}
+  // toggleLight: () => {…}
+
+  /**
+   * 不管shouldUpdate的值是true还是false，都会更新当前组件实例的props和state的值，
+   * 即组件实例的state和props的引用地址发生变化。也就是说即使我们采用PureComponent来减少无用渲染，
+   * 但并不代表该组件的state或者props的引用地址没有发生变化！！！
+   */
+
+  // 1. 组件实例的状态 state 发生变化，即引用地址发生变化；state变化会产生newState，而不管组件更新不更新，newState都会挂载到组件实例上。组件实例改变就意味着组件地址发生变化。
+  // 2. 即使采用PureComponent或者shouldComponentUpdate来减少无用渲染，但组件实例的 props 或者 state 的引用地址也依旧发生了变化。
+
   instance.props = newProps;
   instance.state = newState;
   instance.context = nextContext;
+  console.log("是否应该更新组件：", shouldUpdate);
+  console.log("计算更新后新的属性：", newProps);
+  console.log("计算更新后新的状态：", newState);
+  console.log("计算更新后的组件实例：", instance);
+
+  // 关灯后的打印情况：
+  // 是否应该更新组件： true
+  // 计算更新后新的属性： 
+  // {}
+  // 计算更新后新的状态： 
+  // {light: true, music: true}
+  // 计算更新后的组件实例： 
+  // ToggleLightWithClass {props: {…}, context: {…}, refs: {…}, updater: {…}, toggleLight: ƒ, …}
+  // context: {}
+  // props: {}
+  // refs: {}
+  // state: {light: true, music: true}
+  // toggleLight: () => {…}
+  // updater: {isMounted: ƒ, enqueueSetState: ƒ, enqueueReplaceState: ƒ, enqueueForceUpdate: ƒ}
 
   return shouldUpdate;
 }

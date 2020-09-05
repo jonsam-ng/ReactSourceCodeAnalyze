@@ -4,10 +4,11 @@
  * @Author: wuqingshan
  * @Date: 2020-09-01 18:27:20
  * @LastEditors: wuqingshan
- * @LastEditTime: 2020-09-01 19:33:50
+ * @LastEditTime: 2020-09-05 12:49:46
  */
 import React from 'react';
 import logo from './logo.svg';
+import ComponentA from "./commponents/componentA";
 import './App.css';
 
 function App() {
@@ -16,7 +17,7 @@ function App() {
   // console.log(typeof ref); // object
   return (
     <div className="App">
-      <header className="App-header">
+      {/* <header className="App-header">
         <img src={logo} className="App-logo" alt="logo" />
         <p>
           Edit <code>src/App.js</code> and save to reload.
@@ -29,7 +30,8 @@ function App() {
         >
           Learn React
         </a>
-      </header>
+      </header> */}
+      <ComponentA></ComponentA>
     </div>
   );
 }

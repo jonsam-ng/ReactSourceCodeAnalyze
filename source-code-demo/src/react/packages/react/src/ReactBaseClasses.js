@@ -56,6 +56,11 @@ Component.prototype.isReactComponent = {};
  * @final
  * @protected
  */
+
+// 每次调用函数setState，react 都会将要更新的状态添加到更新队列中，并产生一个调度任务。调度任务在执行的过程中会做两个事情：
+// • 遍历更新队列，计算出全新的状态 state，更新到组件实例中；
+// • 根据标识shouldUpdate来决定是否对组件实例进行重新渲染，而标识shouldUpdate的值则取决于PureComponent组件浅比较结果或者生命周期函数shouldComponentUpdate执行结果；
+// 利用PureComponent组件可以减少组件实例的重复渲染，但组件实例的状态由于被赋予了一个全新的状态，所以引用地址发生了变化。
 // ! setState、forceUpdate 是挂载在组件原型上的
 // 函数setState包含两个参数partialState和callback，其中partialState表示待更新的部分状态，callback则为状态更新后的回调函数。
 Component.prototype.setState = function(partialState, callback) {

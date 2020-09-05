@@ -255,19 +255,26 @@ function forceUnmountCurrentAndReconcile(
   // To do this, we're going to go through the reconcile algorithm twice. In
   // the first pass, we schedule a deletion for all the current children by
   // passing null.
+
+  //关于reconcileChildFibers()的讲解，请看「React源码解析之FunctionComponent（上）」
+  //https://juejin.im/post/6844904004611211277
   workInProgress.child = reconcileChildFibers(
     workInProgress,
     current.child,
-    null,
+    // nextChildren 为 null 也就是删除内部的所有子节点
+    // 渲染出的是一个空的 classComponent
+    null, // schedule a deletion for all the current children
     renderExpirationTime,
   );
   // In the second pass, we mount the new children. The trick here is that we
   // pass null in place of where we usually pass the current child set. This has
   // the effect of remounting all children regardless of whether their their
   // identity matches.
+  // 再渲染一遍，此时老 props 为 null（对应上面的 nextChildren = null）
   workInProgress.child = reconcileChildFibers(
     workInProgress,
-    null,
+    null, // remounting all children regardless of whether their their identity matches.
+    // 这里的新 props 跟老 props（null）基本是没有共同属性的
     nextChildren,
     renderExpirationTime,
   );
@@ -690,6 +697,19 @@ function updateFunctionComponent(
   return workInProgress.child;
 }
 
+
+/**
+ * updateClassComponent函数主要实现了以下几个功能：
+  • 完成组件实例的 state、props 的更新;
+  • 执行 componentWillUpdate、shouldComponentUpdate等生命周期函数；
+  • 完成组件实例的渲染；
+  • 返回下一个待处理的任务单元；
+ * @param {*} current 
+ * @param {*} workInProgress 
+ * @param {*} Component 
+ * @param {*} nextProps 
+ * @param {*} renderExpirationTime 
+ */
 function updateClassComponent(
   current: Fiber | null,
   workInProgress: Fiber,
@@ -726,6 +746,7 @@ function updateClassComponent(
   }
   prepareToReadContext(workInProgress, renderExpirationTime);
 
+  // 获取组件实例
   const instance = workInProgress.stateNode;
   let shouldUpdate;
   if (instance === null) {
@@ -740,28 +761,40 @@ function updateClassComponent(
       workInProgress.effectTag |= Placement;
     }
     // In the initial pass we might need to construct the instance.
+    // 构建class实例
     constructClassInstance(
       workInProgress,
       Component,
       nextProps,
       renderExpirationTime,
     );
+    // 挂载class实例
     mountClassInstance(
       workInProgress,
       Component,
       nextProps,
       renderExpirationTime,
     );
+    console.log("mountClassInstance挂载class组件实例，返回shouldUpdate为：", shouldUpdate);
     shouldUpdate = true;
   } else if (current === null) {
     // In a resume, we'll already have an instance we can reuse.
+    // 恢复挂载的class实例
     shouldUpdate = resumeMountClassInstance(
       workInProgress,
       Component,
       nextProps,
       renderExpirationTime,
     );
+    console.log("resumeMountClassInstance恢复class组件实例，返回shouldUpdate为：", shouldUpdate);
   } else {
+
+    /**
+   * 1. 完成组件实例的state、props的更新;
+   * 2. componentWillUpdate、shouldComponentUpdate生命周期函数执行完毕；
+   * 3. 获取是否要进行更新的标识shouldUpdate；
+   */
+
     shouldUpdate = updateClassInstance(
       current,
       workInProgress,
@@ -769,6 +802,7 @@ function updateClassComponent(
       nextProps,
       renderExpirationTime,
     );
+    console.log("updateClassInstance更新class组件实例，返回shouldUpdate为：", shouldUpdate);
   }
   const nextUnitOfWork = finishClassComponent(
     current,
@@ -778,6 +812,7 @@ function updateClassComponent(
     hasContext,
     renderExpirationTime,
   );
+  console.log("调用finishClassComponent返回nextUnitOfWork：", nextUnitOfWork);
   if (__DEV__) {
     let inst = workInProgress.stateNode;
     if (inst.props !== nextProps) {
@@ -790,6 +825,7 @@ function updateClassComponent(
       didWarnAboutReassigningProps = true;
     }
   }
+  // 返回下一个任务单元
   return nextUnitOfWork;
 }
 
@@ -804,6 +840,8 @@ function finishClassComponent(
   // Refs should update even if shouldComponentUpdate returns false
   markRef(current, workInProgress);
 
+  // 判断是否有错误捕获
+  // effectTag是副作用的标记，挂载在workInProgress上，DidCapture表示捕捉到错误
   const didCaptureError = (workInProgress.effectTag & DidCapture) !== NoEffect;
 
   if (!shouldUpdate && !didCaptureError) {
@@ -824,6 +862,7 @@ function finishClassComponent(
   // Rerender
   ReactCurrentOwner.current = workInProgress;
   let nextChildren;
+  //getDerivedStateFromError是生命周期api，作用是捕获 render error，详情请看：  //https://zh-hans.reactjs.org/docs/react-component.html#static-getderivedstatefromerror
   if (
     didCaptureError &&
     typeof Component.getDerivedStateFromError !== 'function'
@@ -833,6 +872,7 @@ function finishClassComponent(
     // re-render a fallback. This is temporary until we migrate everyone to
     // the new API.
     // TODO: Warn in a future release.
+    // 如果出现 error 但是开发者没有调用getDerivedStateFromError的话，就中断渲染
     nextChildren = null;
 
     if (enableProfilerTimer) {
@@ -862,6 +902,13 @@ function finishClassComponent(
     // the existing children. Conceptually, the normal children and the children
     // that are shown on error are two different sets, so we shouldn't reuse
     // normal children even if their identities match.
+
+    // 当有DidCapture的 effectTag 时，会执行forceUnmountCurrentAndReconcile
+    // 强制卸载当前组件并和解：the normal children and the children
+    // that are shown on error are two different sets, so we shouldn't reuse
+    // normal children even if their identities match.
+
+    // 强制重新计算 children，因为当出错时，是渲染到节点上的 props/state 出现了问题，所以不能复用，必须重新 render
     forceUnmountCurrentAndReconcile(
       current,
       workInProgress,
