@@ -315,13 +315,20 @@ function forEachChildren(children, forEachFunc, forEachContext) {
   if (children == null) {
     return children;
   }
+  // 获取遍历对象缓存池中的资源
+  // mapResult,
+  // keyPrefix,
+  // mapFunction,
+  // mapContext,
   const traverseContext = getPooledTraverseContext(
+    null, // 只需要遍历，不需要返回结果，所以传null
     null,
-    null,
-    forEachFunc,
+    forEachFunc, // 用户传递的回调
     forEachContext,
   );
+  // 遍历子节点
   traverseAllChildren(children, forEachSingleChild, traverseContext);
+  // 释放缓存池中的资源
   releaseTraverseContext(traverseContext);
 }
 /**

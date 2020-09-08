@@ -360,4 +360,4 @@ function escape(key) {
 - key值生成后的形式：`.[key|idx]:[key|idx]:[key|idx]...`
 
 > 参 考：
-> - [Children 中 key 内部生成原理](https://juejin.im/post/6844903910285508621)
+> - [React Children 详解](https://juejin.im/post/6844903910285508621)

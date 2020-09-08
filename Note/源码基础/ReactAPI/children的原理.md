@@ -9,10 +9,9 @@ export {
   toArray,
 };
 ```
-## [[forEach]] 
-
-## [[map]]
-
-## count
-## only
-## toArray
+## 目录
+- [[forEach原理解析]] 
+- [[map原理解析]]
+- [[count]]
+- [[only]]
+- [[toArray]]
