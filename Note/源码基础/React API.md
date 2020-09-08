@@ -1,17 +1,7 @@
-<!--
- * @Descripttion: 
- * @version: 
- * @Author: wuqingshan
- * @Date: 2020-09-01 18:27:20
- * @LastEditors: wuqingshan
- * @LastEditTime: 2020-09-07 09:30:45
--->
-# ReactSourceCodeAnalyze
-> React源码阅读项目
-
-## 基础
-### React API
+# React API
+## React API
 React.js暴露出React的一系列的API。
+
 ```js
 const React = {
   // ReactChildren提供了处理 this.props.children 的工具集，跟旧版本的一样
@@ -68,19 +58,10 @@ const React = {
   __SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED: ReactSharedInternals,
 };
 ```
-### children的原理
-在ReactChildren.js中为children导出了5个方法：forEach、map、count、only、toArray。
-```js
-export {
-  forEachChildren as forEach,
-  mapChildren as map,
-  countChildren as count,
-  onlyChild as only,
-  toArray,
-};
-```
-> 参 考：
-> - [Children 中 key 内部生成原理](https://juejin.im/post/6844903910285508621)
-> 
-## setState 更新机制
-![setState 更新机制原理图](./assets/images/setState机制.png)
+## 目录
+[[children的原理]]
+[[createRef的原理]]
+[[Component & PureComponent的原理]]
+[[createContext的原理]]
+[[forwardRef的原理]]
+[[createElement & cloneElement & createFactory & isValidElement的原理]]

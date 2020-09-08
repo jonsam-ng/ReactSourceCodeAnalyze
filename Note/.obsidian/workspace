@@ -1,0 +1,94 @@
+{
+  "main": {
+    "id": "d65ba5a8543a5f6c",
+    "type": "split",
+    "children": [
+      {
+        "id": "94af23274616913e",
+        "type": "leaf",
+        "active": true,
+        "state": {
+          "type": "markdown",
+          "state": {
+            "file": "源码基础/ReactAPI/children的原理.md",
+            "mode": "source"
+          }
+        }
+      },
+      {
+        "id": "5dc94c0900a6db53",
+        "type": "leaf",
+        "state": {
+          "type": "markdown",
+          "state": {
+            "file": "ReactJS 源码阅读.md",
+            "mode": "preview"
+          }
+        }
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "d63e034e1fa8ff57",
+    "type": "split",
+    "children": [
+      {
+        "id": "3c04f70a1a361035",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "80026f9d0b56fca5",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {}
+            }
+          },
+          {
+            "id": "ec2bc076aa714fc6",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {}
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "4c5338863f3f1c09",
+    "type": "split",
+    "children": [
+      {
+        "id": "e8c5e9bcf26879a7",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "35f5b1d8a1a8869f",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "源码基础/ReactAPI/children的原理.md"
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "lastOpenFiles": [
+    "源码基础/ReactAPI/children的原理.md",
+    "源码基础/ReactAPI/map.md",
+    "ReactJS 源码阅读.md",
+    "源码基础.md",
+    "源码基础/React API.md"
+  ]
+}
