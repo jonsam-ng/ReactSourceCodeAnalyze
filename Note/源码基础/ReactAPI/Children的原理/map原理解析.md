@@ -1,4 +1,5 @@
 # children.map()
+![[map_func.png]]
 map是通过mapChildren()实现的。
 ```js
 function mapChildren(children, func, context) {
