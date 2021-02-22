@@ -518,12 +518,15 @@ function legacyCreateRootFromDOMContainer(
   container: DOMContainer,
   forceHydrate: boolean,
 ): _ReactSyncRoot {
+  // 是否应该 Hydrate
   const shouldHydrate =
     forceHydrate || shouldHydrateDueToLegacyHeuristic(container);
   // First clear any existing content.
   if (!shouldHydrate) {
     let warned = false;
     let rootSibling;
+    // lastChild 属性返回被选节点的最后一个子节点。如果选定的节点没有子节点，则该属性返回 NULL。
+    // 循环删除尾结点，实际上是清空容器
     while ((rootSibling = container.lastChild)) {
       if (__DEV__) {
         if (
@@ -558,7 +561,7 @@ function legacyCreateRootFromDOMContainer(
   // Legacy roots are not batched.
   return new ReactSyncRoot(
     container,
-    LegacyRoot,
+    LegacyRoot, // root 标记
     shouldHydrate
       ? {
           hydrate: true,
@@ -569,9 +572,9 @@ function legacyCreateRootFromDOMContainer(
 
 function legacyRenderSubtreeIntoContainer(
   parentComponent: ?React$Component<any, any>,
-  children: ReactNodeList,
-  container: DOMContainer,
-  forceHydrate: boolean,
+  children: ReactNodeList, // 待渲染的元素
+  container: DOMContainer, // 渲染的目标容器
+  forceHydrate: boolean, 
   callback: ?Function,
 ) {
   if (__DEV__) {
@@ -585,23 +588,58 @@ function legacyRenderSubtreeIntoContainer(
   let fiberRoot;
   if (!root) {
     // Initial mount
+    // 获取到 ReactSyncRoot 实例
     root = container._reactRootContainer = legacyCreateRootFromDOMContainer(
       container,
       forceHydrate,
     );
+    console.log('==>legacyRenderSubtreeIntoContainer_获取到 ReactSyncRoot 实例', {root});
+    // {
+    //   _internalRoot: FiberRootNode // 内部的 fiber 节点
+    //   callbackExpirationTime: 0
+    //   callbackNode: null
+    //   callbackPriority: 90
+    //   containerInfo: div#root // ROOT 的 DOM 节点
+    //   context: {}
+    //   current: FiberNode {tag: 3, key: null, elementType: null, type: null, stateNode: FiberRootNode, …}
+    //   finishedExpirationTime: 0
+    //   finishedWork: null
+    //   firstBatch: null
+    //   firstPendingTime: 0
+    //   firstSuspendedTime: 0
+    //   hydrate: false
+    //   interactionThreadID: 1
+    //   lastExpiredTime: 0
+    //   lastPingedTime: 0
+    //   lastSuspendedTime: 0
+    //   memoizedInteractions: Set(0) {}
+    //   nextKnownPendingLevel: 0
+    //   pendingChildren: null
+    //   pendingContext: null
+    //   pendingInteractionMap: Map(0) {}
+    //   pingCache: null
+    //   tag: 0
+    //   timeoutHandle: -1
+    // }
     fiberRoot = root._internalRoot;
     if (typeof callback === 'function') {
       const originalCallback = callback;
       callback = function() {
+        // 通过 public 的 root 实例去调用 callback
         const instance = getPublicRootInstance(fiberRoot);
+        console.log('==>getPublicRootInstance_可被 callback 的 root 实例', {instance});
+        // instance: null 
         originalCallback.call(instance);
       };
     }
     // Initial mount should not be batched.
+    // render 为首次渲染，则不需要 batchedUpdates
     unbatchedUpdates(() => {
+      // 响应更新
       updateContainer(children, fiberRoot, parentComponent, callback);
     });
   } else {
+    // 如果 root 已经存在，则直接响应更新
     fiberRoot = root._internalRoot;
     if (typeof callback === 'function') {
       const originalCallback = callback;
@@ -613,6 +651,8 @@ function legacyRenderSubtreeIntoContainer(
     // Update
     updateContainer(children, fiberRoot, parentComponent, callback);
   }
+  // 返回 public 的 root 实例
+  // render 函数是有返回值的，返回一个根节点的实例。
   return getPublicRootInstance(fiberRoot);
 }
 

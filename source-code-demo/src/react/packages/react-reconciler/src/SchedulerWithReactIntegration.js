@@ -138,8 +138,10 @@ export function scheduleSyncCallback(callback: SchedulerCallback) {
   // Push this callback into an internal queue. We'll flush these either in
   // the next tick, or earlier if something calls `flushSyncCallbackQueue`.
   if (syncQueue === null) {
+    // 调度队列为空，新建调度队列，并且此任务将会被调度
     syncQueue = [callback];
     // Flush the queue in the next tick, at the earliest.
+    // 标记当前正在被同步调度的节点
     immediateQueueCallbackNode = Scheduler_scheduleCallback(
       Scheduler_ImmediatePriority,
       flushSyncCallbackQueueImpl,
@@ -147,6 +149,7 @@ export function scheduleSyncCallback(callback: SchedulerCallback) {
   } else {
     // Push onto existing queue. Don't need to schedule a callback because
     // we already scheduled one when we created the queue.
+    // 加入调度队列，暂时不被调度
     syncQueue.push(callback);
   }
   return fakeCallbackNode;

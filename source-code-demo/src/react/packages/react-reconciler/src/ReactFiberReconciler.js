@@ -155,7 +155,7 @@ function scheduleRootUpdate(
       );
     }
   }
-
+  // 根据当前render 的expirationTime和suspenseConfig 创建更新对象，称为一个 update。
   const update = createUpdate(expirationTime, suspenseConfig);
   // Caution: React DevTools currently depends on this property
   // being called "element".
@@ -169,10 +169,12 @@ function scheduleRootUpdate(
         'function. Instead received: %s.',
       callback,
     );
+    // 将 callback 挂载到 update上
     update.callback = callback;
   }
-
+  // 更新入队列
   enqueueUpdate(current, update);
+  // 在expirationTime时调度更新
   scheduleWork(current, expirationTime);
 
   return expirationTime;
@@ -200,7 +202,7 @@ export function updateContainerAtExpirationTime(
       }
     }
   }
-
+  // 通过子树计算context，挂载到 container.context 或者 container.pendingContext
   const context = getContextForSubtree(parentComponent);
   if (container.context === null) {
     container.context = context;
@@ -306,11 +308,12 @@ export function createContainer(
 }
 
 export function updateContainer(
-  element: ReactNodeList,
+  element: ReactNodeList, 
   container: OpaqueRoot,
   parentComponent: ?React$Component<any, any>,
   callback: ?Function,
 ): ExpirationTime {
+  // 当前容器的 Fiber 对象
   const current = container.current;
   const currentTime = requestCurrentTime();
   if (__DEV__) {
@@ -326,6 +329,11 @@ export function updateContainer(
     current,
     suspenseConfig,
   );
+  console.log('==>', {suspenseConfig, expirationTime});
+  // {
+  //   expirationTime: 1073741823
+  //   suspenseConfig: null
+  // }
   return updateContainerAtExpirationTime(
     element,
     container,

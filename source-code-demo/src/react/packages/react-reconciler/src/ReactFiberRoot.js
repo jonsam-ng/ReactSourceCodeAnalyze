@@ -38,13 +38,20 @@ export type PendingInteractionMap = Map<ExpirationTime, Set<Interaction>>;
 
 type BaseFiberRootProperties = {|
   // The type of root (legacy, batched, concurrent, etc.)
+  // tag 类型
+  // export type RootTag = 0 | 1 | 2;
+  // export const LegacyRoot = 0;
+  // export const BatchedRoot = 1;
+  // export const ConcurrentRoot = 2;
   tag: RootTag,
 
   // Any additional information from the host associated with this root.
+  // 容器信息
   containerInfo: any,
   // Used only by persistent updates.
   pendingChildren: any,
   // The currently active root fiber. This is the mutable root of the tree.
+  // 当前容器的 Fiber 对象
   current: Fiber,
 
   pingCache:
@@ -54,6 +61,7 @@ type BaseFiberRootProperties = {|
 
   finishedExpirationTime: ExpirationTime,
   // A finished work-in-progress HostRoot that's ready to be committed.
+  // 将被 commit 的 Fiber
   finishedWork: Fiber | null,
   // Timeout handle returned by setTimeout. Used to cancel a pending timeout, if
   // it's superseded by a new one.
@@ -62,6 +70,7 @@ type BaseFiberRootProperties = {|
   context: Object | null,
   pendingContext: Object | null,
   // Determines if we should attempt to hydrate on the initial mount
+  // 是否需要在初次渲染时进行hydrate
   +hydrate: boolean,
   // List of top-level batches. This list indicates whether a commit should be
   // deferred. Also contains completion callbacks.
@@ -70,6 +79,7 @@ type BaseFiberRootProperties = {|
   // Node returned by Scheduler.scheduleCallback
   callbackNode: *,
   // Expiration of the callback associated with this root
+  // callback 的超时时间
   callbackExpirationTime: ExpirationTime,
   // Priority of the callback associated with this root
   callbackPriority: ReactPriorityLevel,

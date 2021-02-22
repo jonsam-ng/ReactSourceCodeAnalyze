@@ -225,14 +225,18 @@ export function recordEffect(): void {
 
 export function recordScheduleUpdate(): void {
   if (enableUserTimingAPI) {
+    // isCommitting 标记当前是否处于 commit 阶段
     if (isCommitting) {
+      // 标记在当前 commit 有调度更新
       hasScheduledUpdateInCurrentCommit = true;
     }
     if (
+      // currentPhase 记录当前的生命周期阶段 
       currentPhase !== null &&
       currentPhase !== 'componentWillMount' &&
       currentPhase !== 'componentWillReceiveProps'
     ) {
+      // 标记在当前阶段有调度更新
       hasScheduledUpdateInCurrentPhase = true;
     }
   }

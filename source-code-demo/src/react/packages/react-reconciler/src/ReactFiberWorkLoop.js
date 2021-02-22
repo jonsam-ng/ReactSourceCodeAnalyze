@@ -311,18 +311,23 @@ export function computeExpirationForFiber(
 ): ExpirationTime {
   const mode = fiber.mode;
   if ((mode & BatchedMode) === NoMode) {
-    return Sync;
+    console.log('==>', {mode, BatchedMode});
+    // {mode: 8, BatchedMode: 2}
+    // 8&2=0
+    return Sync; // 1073741823 MAX_SIGNED_31_BIT_INT
   }
 
   const priorityLevel = getCurrentPriorityLevel();
   if ((mode & ConcurrentMode) === NoMode) {
+    console.log('==>', {mode, ConcurrentMode});
     return priorityLevel === ImmediatePriority ? Sync : Batched;
   }
 
   if ((executionContext & RenderContext) !== NoContext) {
+    console.log('==>', {executionContext, RenderContext});
     // Use whatever time we're already rendering
     // TODO: Should there be a way to opt out, like with `runWithPriority`?
-    return renderExpirationTime;
+    return renderExpirationTime; // NoWork 0
   }
 
   let expirationTime;
@@ -364,6 +369,7 @@ export function computeExpirationForFiber(
     // This is a trick to move this update into a separate batch
     expirationTime -= 1;
   }
+  console.log('==>computeExpirationForFiber', {mode, priorityLevel, expirationTime});
 
   return expirationTime;
 }
@@ -393,18 +399,18 @@ export function scheduleUpdateOnFiber(
 ) {
   checkForNestedUpdates();
   warnAboutInvalidUpdatesOnClassComponentsInDEV(fiber);
-
+  // 从 fiber 到 root 标记expirationTime
   const root = markUpdateTimeFromFiberToRoot(fiber, expirationTime);
   console.log("调度任务中root是：", root);
   // 关灯的打印情况：
-  // 调度任务中root： FiberRootNode {tag: 0, current: FiberNode, containerInfo: div#root, pendingChildren: null, pingCache: null, …}callbackExpirationTime: 0callbackNode: nullcallbackPriority: 90containerInfo: div#rootcontext: {}current: FiberNode {tag: 3, key: null, elementType: null, type: null, stateNode: FiberRootNode, …}finishedExpirationTime: 0finishedWork: nullfirstBatch: nullfirstPendingTime: 0firstSuspendedTime: 0hydrate: falseinteractionThreadID: 1lastExpiredTime: 0lastPingedTime: 0lastSuspendedTime: 0memoizedInteractions: Set(0) {}nextKnownPendingLevel: 0pendingChildren: nullpendingContext: nullpendingInteractionMap: Map(0) {}pingCache: nulltag: 0timeoutHandle: -1__proto__: Object
   // 调度任务中root： FiberRootNode {tag: 0, current: FiberNode, containerInfo: div#root, pendingChildren: null, pingCache: null, …}
   if (root === null) {
     warnAboutUpdateOnUnmountedFiberInDEV(fiber);
     return;
   }
-
-  checkForInterruption(fiber, expirationTime);
+  // 检查中断
+  checkForInterruption(fiber, expirationTime); 
+  // 记录调度更新
   recordScheduleUpdate();
 
   // TODO: computeExpirationForFiber also reads the priority. Pass the
@@ -414,6 +420,7 @@ export function scheduleUpdateOnFiber(
 
   if (expirationTime === Sync) {
     if (
+      // 如果是 unbatchedUpdates 且不在 rendering 和 commit 状态
       // Check if we're inside unbatchedUpdates
       (executionContext & LegacyUnbatchedContext) !== NoContext &&
       // Check if we're not already rendering
@@ -575,6 +582,7 @@ function ensureRootIsScheduled(root: FiberRoot) {
   const lastExpiredTime = root.lastExpiredTime;
   if (lastExpiredTime !== NoWork) {
     // Special case: Expired work should flush synchronously.
+    // 同步更新，不需要调度
     root.callbackExpirationTime = Sync;
     root.callbackPriority = ImmediatePriority;
     root.callbackNode = scheduleSyncCallback(
@@ -585,6 +593,7 @@ function ensureRootIsScheduled(root: FiberRoot) {
 
   const expirationTime = getNextRootExpirationTimeToWorkOn(root);
   const existingCallbackNode = root.callbackNode;
+  // 没有调度任务
   if (expirationTime === NoWork) {
     // There's nothing to work on.
     if (existingCallbackNode !== null) {
@@ -608,7 +617,7 @@ function ensureRootIsScheduled(root: FiberRoot) {
   if (existingCallbackNode !== null) {
     const existingCallbackPriority = root.callbackPriority;
     const existingCallbackExpirationTime = root.callbackExpirationTime;
-    if (
+    if ( // 检查是否是合法的渲染任务
       // Callback must have the exact same expiration time.
       existingCallbackExpirationTime === expirationTime &&
       // Callback must have greater or equal priority.
@@ -620,6 +629,7 @@ function ensureRootIsScheduled(root: FiberRoot) {
     // Need to schedule a new task.
     // TODO: Instead of scheduling a new task, we should be able to change the
     // priority of the existing one.
+    // 取消不合法的渲染任务
     cancelCallback(existingCallbackNode);
   }
 
@@ -627,8 +637,11 @@ function ensureRootIsScheduled(root: FiberRoot) {
   root.callbackPriority = priorityLevel;
 
   let callbackNode;
+  // 同步的渲染任务
   if (expirationTime === Sync) {
+    // 首次渲染调度
     // Sync React callbacks are scheduled on a special internal queue
+    // 由单独的调度队列调度
     callbackNode = scheduleSyncCallback(performSyncWorkOnRoot.bind(null, root));
   } else if (disableSchedulerTimeoutBasedOnReactExpirationTime) {
     callbackNode = scheduleCallback(
@@ -636,6 +649,7 @@ function ensureRootIsScheduled(root: FiberRoot) {
       performConcurrentWorkOnRoot.bind(null, root),
     );
   } else {
+    // 异步的渲染任务调度
     callbackNode = scheduleCallback(
       priorityLevel,
       performConcurrentWorkOnRoot.bind(null, root),
@@ -2613,6 +2627,7 @@ function checkForInterruption(
     enableUserTimingAPI &&
     workInProgressRoot !== null &&
     updateExpirationTime > renderExpirationTime
+    // 如果非首次渲染，且更新超时时间超过渲染超时时间则被标记为中断 fiber
   ) {
     interruptedBy = fiberThatReceivedUpdate;
   }

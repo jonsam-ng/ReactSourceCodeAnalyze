@@ -173,7 +173,7 @@ export function createUpdateQueue<State>(baseState: State): UpdateQueue<State> {
     baseState,
     firstUpdate: null, // 初次更新
     lastUpdate: null, // 上次更新
-    firstCapturedUpdate: null, // ? 初次捕获更新
+    firstCapturedUpdate: null, // 初次捕获更新
     lastCapturedUpdate: null, // 最新捕获更新
     firstEffect: null,
     lastEffect: null,
@@ -223,8 +223,8 @@ export function createUpdate(
     payload: null, // 负载
     callback: null, // 回调函数
 
-    next: null, // 队列下一项操作的指针
-    nextEffect: null,// ? 含义？ 区别？
+    next: null, // 队列下一项更新的指针
+    nextEffect: null,// 指向下一项副作用的指针
   };
   if (__DEV__) {
     update.priority = getCurrentPriorityLevel();
@@ -245,7 +245,7 @@ function appendUpdateToQueue<State>(
     // Queue is empty // 空队列
     queue.firstUpdate = queue.lastUpdate = update; // 头指针和尾指针都指向了update
   } else {
-    queue.lastUpdate.next = update; // 将update挂载到尾指针后面
+    queue.lastUpdate.next = update; // 将update挂载到尾指针的 next
     queue.lastUpdate = update; // 将尾指针移动到update
   }
 }
@@ -255,6 +255,7 @@ function appendUpdateToQueue<State>(
 * @returns
 */
 export function enqueueUpdate<State>(fiber: Fiber, update: Update<State>) {
+  console.log('==>enqueueUpdate', {fiber,update});
   // Update queues are created lazily.
   const alternate = fiber.alternate; // ? fiber上的alternate是什么
   let queue1;
@@ -290,6 +291,7 @@ export function enqueueUpdate<State>(fiber: Fiber, update: Update<State>) {
       }
     }
   }
+  console.log('==>enqueueUpdate 更新队列', {queue1, queue2});
   if (queue2 === null || queue1 === queue2) { // 只有一个队列，将更新加入到队列
     // There's only a single queue.
     appendUpdateToQueue(queue1, update);
@@ -304,7 +306,7 @@ export function enqueueUpdate<State>(fiber: Fiber, update: Update<State>) {
       appendUpdateToQueue(queue2, update);
     } else {
       // Both queues are non-empty. The last update is the same in both lists,
-      // because of structural sharing. So, only append to one of the lists. // last update相同则加入到其中一个队列
+      // because of structural sharing. So, only append to one of the lists.
       appendUpdateToQueue(queue1, update);
       console.log("有两个队列,将更新加入到队列，更新update为:", update, "队列为：", queue1);
       // But we still need to update the `lastUpdate` pointer of queue2.

@@ -295,6 +295,7 @@ function timeoutForPriorityLevel(priorityLevel) {
 function unstable_scheduleCallback(priorityLevel, callback, options) {
   var currentTime = getCurrentTime();
 
+  // 计算startTime 和 timeout
   var startTime;
   var timeout;
   if (typeof options === 'object' && options !== null) {
@@ -312,9 +313,9 @@ function unstable_scheduleCallback(priorityLevel, callback, options) {
     timeout = timeoutForPriorityLevel(priorityLevel);
     startTime = currentTime;
   }
-
+  // 计算 expirationTime
   var expirationTime = startTime + timeout;
-
+  // 创建新的 task
   var newTask = {
     id: taskIdCounter++,
     callback,
@@ -329,8 +330,12 @@ function unstable_scheduleCallback(priorityLevel, callback, options) {
 
   if (startTime > currentTime) {
     // This is a delayed task.
+    // startTime 大于 currentTime 则 task 被 delay
+    // 延迟任务
     newTask.sortIndex = startTime;
+    // 将新建的 task 添加至队列，延时任务加入到 timerQueue
     push(timerQueue, newTask);
+    // 如果该新建 task 是最早 delay 的 task，即刚好是队首的 task
     if (peek(taskQueue) === null && newTask === peek(timerQueue)) {
       // All tasks are delayed, and this is the task with the earliest delay.
       if (isHostTimeoutScheduled) {
@@ -339,11 +344,13 @@ function unstable_scheduleCallback(priorityLevel, callback, options) {
       } else {
         isHostTimeoutScheduled = true;
       }
-      // Schedule a timeout.
+      // Schedule a timeout.设置延时， 主线程延时回调
       requestHostTimeout(handleTimeout, startTime - currentTime);
     }
   } else {
+    // 即时任务
     newTask.sortIndex = expirationTime;
+    // 即时任务加入到 taskQueue
     push(taskQueue, newTask);
     if (enableProfiling) {
       markTaskStart(newTask, currentTime);
@@ -353,6 +360,7 @@ function unstable_scheduleCallback(priorityLevel, callback, options) {
     // wait until the next time we yield.
     if (!isHostCallbackScheduled && !isPerformingWork) {
       isHostCallbackScheduled = true;
+      //  请求主线程回调
       requestHostCallback(flushWork);
     }
   }
