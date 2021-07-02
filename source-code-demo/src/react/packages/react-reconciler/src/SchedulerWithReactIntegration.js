@@ -141,7 +141,7 @@ export function scheduleSyncCallback(callback: SchedulerCallback) {
     // 调度队列为空，新建调度队列，并且此任务将会被调度
     syncQueue = [callback];
     // Flush the queue in the next tick, at the earliest.
-    // 标记当前正在被同步调度的节点
+    // 标记当前正在被同步调度的节点，初始化调度
     immediateQueueCallbackNode = Scheduler_scheduleCallback(
       Scheduler_ImmediatePriority,
       flushSyncCallbackQueueImpl,

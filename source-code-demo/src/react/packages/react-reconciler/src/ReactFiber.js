@@ -122,6 +122,7 @@ export type Dependencies = {
 
 // A Fiber is work on a Component that needs to be done or was done. There can
 // be more than one per component.
+// Fiber 作用于需要渲染或者已经渲染的组件。一个组件可能有不止一个 Fiber。
 export type Fiber = {|
   // These first fields are conceptually members of an Instance. This used to
   // be split into a separate type and intersected with the other Fiber fields,
@@ -132,21 +133,27 @@ export type Fiber = {|
   // break this out into a separate object to avoid copying so much to the
   // alternate versions of the tree. We put this on a single object for now to
   // minimize the number of objects created during the initial render.
+  // 一个 Fiber 实例有组件的各个历史版本所共享。创建一个完整的对象以减少初次渲染时创建对象的数目。
 
   // Tag identifying the type of fiber.
+  // 区分 Fiber 的类型:0-21
   tag: WorkTag,
 
   // Unique identifier of this child.
+  // fiber 实例的 key 值。
   key: null | string,
 
   // The value of element.type which is used to preserve the identity during
   // reconciliation of this child.
+  // 元素类型 element.type
   elementType: any,
 
   // The resolved function/class/ associated with this fiber.
+  // fiber对应的function/class/module类型组件名.
   type: any,
 
   // The local state associated with this fiber.
+  // fiber所在组件树的根组件FiberRoot对象
   stateNode: any,
 
   // Conceptual aliases
@@ -159,9 +166,11 @@ export type Fiber = {|
   // This is effectively the parent, but there can be multiple parents (two)
   // so this is only the parent of the thing we're currently processing.
   // It is conceptually the same as the return address of a stack frame.
+  // 处理完当前 fiber 之后返回的 fiber，即父级 fiber。
   return: Fiber | null,
 
   // Singly Linked List Tree Structure.
+  // 子 fiber 和父级 fiber。数据结构：单链表树。
   child: Fiber | null,
   sibling: Fiber | null,
   index: number,
@@ -171,16 +180,20 @@ export type Fiber = {|
   ref: null | (((handle: mixed) => void) & {_stringRef: ?string}) | RefObject,
 
   // Input is the data coming into process this fiber. Arguments. Props.
+  // 当前 work-i-progress 的组件 props。
   pendingProps: any, // This type will be more specific once we overload the tag.
+  // 缓存之前的组件的 props。
   memoizedProps: any, // The props used to create the output.
 
   // A queue of state updates and callbacks.
+  // 状态更新和回调的队列，用于对组件做更新。
   updateQueue: UpdateQueue<any> | null,
 
   // The state used to create the output
   memoizedState: any,
 
   // Dependencies (contexts, events) for this fiber, if it has any
+  // fiber 依赖
   dependencies: Dependencies | null,
 
   // Bitfield that describes properties about the fiber and its subtree. E.g.
@@ -189,30 +202,37 @@ export type Fiber = {|
   // parent. Additional flags can be set at creation time, but after that the
   // value should remain unchanged throughout the fiber's lifetime, particularly
   // before its child fibers are created.
+  // 用于描述 fiber 和 fiber tree 的属性的二进制常量。如 NoMode、StrictMode
   mode: TypeOfMode,
 
   // Effect
+  // effect 的状态
   effectTag: SideEffectTag,
 
   // Singly linked list fast path to the next fiber with side-effects.
+  // 以单链表的结构指向下一个 effect
   nextEffect: Fiber | null,
 
   // The first and last fiber with side-effect within this subtree. This allows
   // us to reuse a slice of the linked list when we reuse the work done within
   // this fiber.
+  // 当前的 pending effect 和 上一个 effect.
   firstEffect: Fiber | null,
   lastEffect: Fiber | null,
 
   // Represents a time in the future by which this work should be completed.
   // Does not include work found in its subtree.
+  // expirationTime 表示未来这个任务会被完成的时刻。也就是距离任务执行的时间间隔。到期时间。
   expirationTime: ExpirationTime,
 
   // This is used to quickly determine if a subtree has no pending changes.
+  // 子节点的 expirationTime，取 子树到期时间的最小值。用于判断是否子树还有渲染变化。
   childExpirationTime: ExpirationTime,
 
   // This is a pooled version of a Fiber. Every fiber that gets updated will
   // eventually have a pair. There are cases when we can clean up pairs to save
   // memory if we need to.
+  // 这个Fiber 的版本池，每个更新的 fiber 都会有一个相对的 alternate fiber。
   alternate: Fiber | null,
 
   // Time spent rendering this Fiber and its descendants for the current update.

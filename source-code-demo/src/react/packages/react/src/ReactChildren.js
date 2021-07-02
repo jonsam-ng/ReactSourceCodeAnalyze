@@ -50,23 +50,28 @@ function escapeUserProvidedKey(text) {
   return ('' + text).replace(userProvidedKeyEscapeRegex, '$&/');
 }
 
+// 遍历环境缓存池
 const POOL_SIZE = 10;
 const traverseContextPool = [];
 function getPooledTraverseContext(
-  mapResult,
-  keyPrefix,
-  mapFunction,
-  mapContext,
+  mapResult, // 遍历结果数组
+  keyPrefix, // traverseContext 的 key
+  mapFunction, // 遍历回调函数
+  mapContext, // 遍历的 context
 ) {
+  // 如果当前缓存池非空
   if (traverseContextPool.length) {
+    // 取出队尾的traverseContext
     const traverseContext = traverseContextPool.pop();
     traverseContext.result = mapResult;
     traverseContext.keyPrefix = keyPrefix;
     traverseContext.func = mapFunction;
     traverseContext.context = mapContext;
     traverseContext.count = 0;
+    // 返回修改后的 traverseContext
     return traverseContext;
   } else {
+    // 缓存池为空则新建一个 traverseContext，最多 10 个
     return {
       result: mapResult,
       keyPrefix: keyPrefix,
@@ -96,10 +101,11 @@ function releaseTraverseContext(traverseContext) {
  * process.
  * @return {!number} The number of children in this subtree.
  */
+// 返回子代数量
 function traverseAllChildrenImpl(
-  children,
+  children, // 遍历目标
   nameSoFar,
-  callback,
+  callback, // mapSingleChildIntoContext 内部的遍历回调器
   traverseContext,
 ) {
   const type = typeof children;
@@ -109,6 +115,8 @@ function traverseAllChildrenImpl(
     children = null;
   }
 
+  // 为 true 表示不需要进一步处理，可以直接 callback。(null,string,number,Element,Portal)。
+  // 因为只有一个元素，只 callback 一次。
   let invokeCallback = false;
 
   if (children === null) {
@@ -134,6 +142,7 @@ function traverseAllChildrenImpl(
       children,
       // If it's the only child, treat the name as if it was wrapped in an array
       // so that it's consistent if the number of children grows.
+      // nameSoFar 初始化，children 不是数组，获取 key 值
       nameSoFar === '' ? SEPARATOR + getComponentKey(children, 0) : nameSoFar,
     );
     return 1;
@@ -142,6 +151,7 @@ function traverseAllChildrenImpl(
   let child;
   let nextName;
   let subtreeCount = 0; // Count of children found in the current subtree.
+  // 如：.j:
   const nextNamePrefix =
     nameSoFar === '' ? SEPARATOR : nameSoFar + SUBSEPARATOR;
 
@@ -157,6 +167,7 @@ function traverseAllChildrenImpl(
       );
     }
   } else {
+    // 针对不是数组但内部实现了迭代器的 children。
     const iteratorFn = getIteratorFn(children);
     if (typeof iteratorFn === 'function') {
       if (__DEV__) {
@@ -186,6 +197,7 @@ function traverseAllChildrenImpl(
         );
       }
     } else if (type === 'object') {
+      // 如果传入 children 是对象，则报错。
       let addendum = '';
       if (__DEV__) {
         addendum =
@@ -251,6 +263,7 @@ function getComponentKey(component, index) {
     return escape(component.key);
   }
   // Implicit key determined by the index in the set
+  // 使用 36 进制，即 0-9-a-z。(35).toString(36) === 'z'。
   return index.toString(36);
 }
 
@@ -288,11 +301,15 @@ function forEachChildren(children, forEachFunc, forEachContext) {
 function mapSingleChildIntoContext(bookKeeping, child, childKey) {
   const {result, keyPrefix, func, context} = bookKeeping;
 
+  // 调用用户的回调函数
   let mappedChild = func.call(context, child, bookKeeping.count++);
   if (Array.isArray(mappedChild)) {
+    // 如果返回了数组，继续进行 map
     mapIntoWithKeyPrefixInternal(mappedChild, result, childKey, c => c);
   } else if (mappedChild != null) {
+    // 是否是 ReactElement
     if (isValidElement(mappedChild)) {
+      // 处理mappedChild的 key 值
       mappedChild = cloneAndReplaceKey(
         mappedChild,
         // Keep both the (mapped) and old keys if they differ, just as
@@ -304,6 +321,7 @@ function mapSingleChildIntoContext(bookKeeping, child, childKey) {
           childKey,
       );
     }
+    // 加入result数组
     result.push(mappedChild);
   }
 }
@@ -313,13 +331,16 @@ function mapIntoWithKeyPrefixInternal(children, array, prefix, func, context) {
   if (prefix != null) {
     escapedPrefix = escapeUserProvidedKey(prefix) + '/';
   }
+  // 从缓存池中获取 traverseContext，此时并没有加入 traverseContextPool
   const traverseContext = getPooledTraverseContext(
     array,
     escapedPrefix,
     func,
     context,
   );
+  // 遍历 children 执行回调，并且将结果加入到 mapResult。
   traverseAllChildren(children, mapSingleChildIntoContext, traverseContext);
+  // 释放当前遍历的traverseContext。
   releaseTraverseContext(traverseContext);
 }
 

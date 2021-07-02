@@ -93,6 +93,8 @@ function defineRefPropWarningGetter(props, displayName) {
  * the class pattern, so do not use new to call it. Also, no instanceof check
  * will work. Instead test $$typeof field against Symbol.for('react.element') to check
  * if something is a React Element.
+ * 返回ReactElement的工厂方法。针对 Symbol.for('react.element') 测试 $$typeof 字段来检查
+ * 如果某物是 React 元素。
  *
  * @param {*} type
  * @param {*} props
@@ -108,9 +110,11 @@ function defineRefPropWarningGetter(props, displayName) {
  * indicating filename, line number, and/or other information.
  * @internal
  */
-const ReactElement = function(type, key, ref, self, source, owner, props) {
+const ReactElement = function (type, key, ref, self, source, owner, props) {
+  // 新建一个ReactElement对象
   const element = {
     // This tag allows us to uniquely identify this as a React Element
+    // ReactElement 的标志
     $$typeof: REACT_ELEMENT_TYPE,
 
     // Built-in properties that belong on the element
@@ -118,7 +122,7 @@ const ReactElement = function(type, key, ref, self, source, owner, props) {
     key: key,
     ref: ref,
     props: props,
-
+    // 所属的组件
     // Record the component responsible for creating this element.
     _owner: owner,
   };
@@ -309,6 +313,7 @@ export function jsxDEV(type, config, maybeKey, source, self) {
  * Create and return a new ReactElement of the given type.
  * See https://reactjs.org/docs/react-api.html#createelement
  */
+// 根据元素类型 type，元素属性 config 和元素子节点（数组） children 创建 react 元素
 export function createElement(type, config, children) {
   let propName;
 
@@ -321,9 +326,11 @@ export function createElement(type, config, children) {
   let source = null;
 
   if (config != null) {
+    // 检查是否添加了 ref 属性
     if (hasValidRef(config)) {
       ref = config.ref;
     }
+    // 检查是否添加了 key 属性
     if (hasValidKey(config)) {
       key = '' + config.key;
     }
@@ -331,6 +338,7 @@ export function createElement(type, config, children) {
     self = config.__self === undefined ? null : config.__self;
     source = config.__source === undefined ? null : config.__source;
     // Remaining properties are added to a new props object
+    // 添加至属性对象
     for (propName in config) {
       if (
         hasOwnProperty.call(config, propName) &&
@@ -345,6 +353,8 @@ export function createElement(type, config, children) {
   // the newly allocated props object.
   const childrenLength = arguments.length - 2;
   if (childrenLength === 1) {
+    // 单一子节点直接赋值
+    // children 是放到 props 上的，因此可以通过 props 的 children 获得组件内部内容
     props.children = children;
   } else if (childrenLength > 1) {
     const childArray = Array(childrenLength);
@@ -360,6 +370,7 @@ export function createElement(type, config, children) {
   }
 
   // Resolve default props
+  // 元素默认的属性
   if (type && type.defaultProps) {
     const defaultProps = type.defaultProps;
     for (propName in defaultProps) {
@@ -383,12 +394,15 @@ export function createElement(type, config, children) {
     }
   }
   return ReactElement(
+    // 元素类型
     type,
+    // 内部属性
     key,
     ref,
     self,
     source,
     ReactCurrentOwner.current,
+    // 元素属性
     props,
   );
 }
